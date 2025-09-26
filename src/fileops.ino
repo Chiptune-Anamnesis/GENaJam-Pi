@@ -903,7 +903,7 @@ void loadSelectedPreset(void) {
     
     // Show completion summary
     oled_clear();
-    oled_print(0, 0, "PRESET LOADED!");
+    oled_print(0, 0, "BANK LOADED!");
     char summary[32];
     sprintf(summary, "CH:%d Skip:%d", loaded_channels, skipped_channels);
     oled_print(0, 16, summary);
