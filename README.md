@@ -331,7 +331,7 @@ Buttons (Digital, with pullups):
 
 ## Credits
 
-- **Original GENajam**: JAMATAR (2021)
+- **Original GENajam**: [JAMATAR](https://github.com/jamatarmusic/GENajam) (2021)
 - **GENMDM Module**: Little-scale
 - **Velocity Curve**: impbox
 - **Base Project**: Catskull Electronics
