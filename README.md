@@ -67,44 +67,59 @@ Buttons (Digital, with pullups):
 
 ## Operation Modes
 
-### Mode 1: Mono Preset
-- Browse and load TFI files per channel
-- Use UP/DOWN to select FM channel (1-6)
-- Use LEFT/RIGHT to browse presets
-- Immediate loading for responsive channel switching
+### MONO Mode Cycle
+**PRESET Button cycles through:** VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...
 
-### Mode 1a: Mono Edit
-- Real-time FM parameter editing
-- 4 pots control selected parameter screen
-- 13 parameter screens available
-- Changes apply to current channel only
+#### Visualizer Mode
+- **4 Sub-modes** (UP/DOWN to cycle): Bar Graph, Asteroids, Starfighter, Neural Net
+- Real-time MIDI visualization for channels 1-11
+- Continuous animation during music playback
 
-### Mode 2: Poly Preset
-- Browse presets for polyphonic play
-- All 6 channels loaded with same preset
-- 2-second delayed loading prevents browsing lag
-- DELETE button removes files
+#### Presets Mode
+- Browse and load TFI files per channel (1-6)
+- **UP/DOWN**: Select FM channel
+- **LEFT/RIGHT**: Browse TFI files in `/tfi/` folder
+- **OPT1**: Load selected TFI to current channel
 
-### Mode 2a: Poly Edit
-- Real-time editing in poly mode
-- Parameter changes affect all 6 channels
-- Same 13 parameter screens as mono mode
+#### FM Edit Mode
+- Real-time FM parameter editing for current channel
+- **UP/DOWN**: Select channel (1-6)
+- **LEFT/RIGHT**: Navigate through 13 parameter screens
+- **4 Potentiometers**: Adjust parameters in real-time
+- **OPT2**: Save prompt (UP=overwrite, DOWN=save new, PRESET=cancel)
 
-### Mode 3: MIDI Visualization
-- Real-time bar meter for channels 1-11
+#### Bank Manager Mode
+- Save/load complete 6-channel TFI configurations
+- **LEFT/RIGHT**: Browse saved preset banks
+- **OPT2**: Save current configuration as new preset
+- **OPT1**: Load selected preset bank
+- **DELETE**: Delete selected preset
 
-### Mode 4a: Mono Bank
-- Save / Load TFI presets for all channels
+#### Settings Mode
+- **LEFT/RIGHT**: Navigate settings (MIDI Channel, Region, Velocity Curve)
+- **UP/DOWN** or **Pots**: Adjust values
+- **OPT2**: Save changes to EEPROM and SD card
+- **PRESET**: Exit without saving
 
-### Mode 4b: Poly Bank
-- Save / Load TFI preset
+### POLY Mode Cycle
+**PRESET Button cycles through:** VIZ → PRESETS → FM EDIT → VIZ...
+*(BANK MGR and SETTINGS disabled in POLY mode)*
 
-### Mode Navigation
+#### Visualizer Mode
+- Same 4 sub-modes as MONO, shows polyphonic activity
 
-## Mono
-- Cycle: VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...  
-## Poly
-Cycle: VIZ → PRESETS → FM EDIT → VIZ... (BANK MGR and SETTINGS are disabled in POLY mode) 
+#### Presets Mode
+- Browse TFI files for all 6 channels simultaneously
+- **LEFT/RIGHT**: Browse TFI files
+- **OPT1**: Load selected TFI to all 6 channels
+- **OPT2**: Save prompt for current TFI
+- **DELETE**: Delete TFI file
+
+#### FM Edit Mode
+- Real-time editing affects all 6 channels simultaneously
+- **LEFT/RIGHT**: Navigate parameter screens
+- **4 Potentiometers**: Adjust parameters for all channels
+- **OPT2**: Save prompt (UP=overwrite, DOWN=save new, PRESET=cancel) 
 
 ## Mode Switching:
 
