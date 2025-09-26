@@ -91,17 +91,18 @@ void showModeMessage() {
   switch(mode) {
     case 1:  // MONO PRESET
       display.print("MONO | Preset");
+      primePotBaselines();
       break;
     case 2:  // MONO EDIT
       display.print("MONO | FM Edit");
-      primePotBaselines(); 
+      primePotBaselines();
       break;
     case 3:  // POLY PRESET
       display.print("POLY | Preset");
       break;
     case 4:  // POLY EDIT
       display.print("POLY | FM Edit");
-      primePotBaselines();   
+      primePotBaselines();
       break;
     case 5:  // MONO VIZ
       display.print("MONO | Visualizer");

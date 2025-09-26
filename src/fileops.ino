@@ -1,19 +1,30 @@
 void scandir(bool saved) {
     n = 0;
+    user_file_count = 0;
+
+    scanDirectoryRecursive("/tfi/user", saved);
+    user_file_count = n;
+
     scanDirectoryRecursive("/tfi", saved);
-    
+
+    sortFilesByFolder();
+
     // Clamp selections if list shrank
     for (int i = 0; i < 6; ++i) {
-        if (n == 0) { 
-            tfifilenumber[i] = 0; 
-        } else if (tfifilenumber[i] >= n) { 
-            tfifilenumber[i] = n - 1; 
+        if (n == 0) {
+            tfifilenumber[i] = 0;
+        } else if (tfifilenumber[i] >= n) {
+            tfifilenumber[i] = n - 1;
         }
     }
 }
 
 void scanDirectoryRecursive(const char* path, bool saved) {
-    if (n >= nMax) return; // Stop at exact limit to prevent memory issues
+    // Check file limits based on scanning phase
+    bool is_user_folder = (strcmp(path, "/tfi/user") == 0);
+    if (is_user_folder && user_file_count >= nMaxUser) return;  // User limit
+    if (!is_user_folder && (n - user_file_count) >= nMaxLibrary) return;  // Library limit
+    if (n >= nMaxTotal) return;  // Total limit
     
     File dir = SD.open(path);
     if (!dir || !dir.isDirectory()) {
@@ -22,14 +33,19 @@ void scanDirectoryRecursive(const char* path, bool saved) {
     }
     
     // Show progress during scanning
-    if (strcmp(path, "/tfi") == 0) {
+    if (strcmp(path, "/tfi/user") == 0) {
         display.clearDisplay();
         display.setCursor(0, 0);
-        display.print("Scanning TFI files...");
+        display.print("Scanning user files...");
+        display.display();
+    } else if (strcmp(path, "/tfi") == 0) {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print("Scanning Lib files...");
         display.display();
     }
     
-    while (n < nMax) {
+    while (n < nMaxTotal) {
         File entry = dir.openNextFile();
         if (!entry) break;
         
@@ -48,6 +64,12 @@ void scanDirectoryRecursive(const char* path, bool saved) {
         }
         
         if (entry.isDirectory()) {
+            // Skip user folder when scanning main tfi directory
+            if (strcmp(path, "/tfi") == 0 && strcmp(name, "user") == 0) {
+                entry.close();
+                continue;
+            }
+
             // Recursively scan subdirectory
             char subPath[96];
             if (strcmp(path, "/") == 0) {
@@ -68,10 +90,28 @@ void scanDirectoryRecursive(const char* path, bool saved) {
                          (name[nameLen-1] == 'i' || name[nameLen-1] == 'I'));
                          
             if (isTFI) {
-                // SKIP files with names too long (without .tfi extension)
-                int dispLen = nameLen - 4;  // Length without .tfi
+                bool is_user_folder = (strcmp(path, "/tfi/user") == 0);
+                if (is_user_folder && user_file_count >= nMaxUser) {
+                    entry.close();
+                    continue;
+                }
+                if (!is_user_folder && (n - user_file_count) >= nMaxLibrary) {
+                    entry.close();
+                    continue;
+                }
+                if (n >= nMaxTotal) {
+                    entry.close();
+                    continue;
+                }
+
+                int required_path_length = strlen(path) + 1 + strlen(name) + 1;
+                if (required_path_length > FullNameChars) {
+                    entry.close();
+                    continue;
+                }
+
+                int dispLen = nameLen - 4;
                 if (dispLen > MaxNumberOfChars) {
-                    // Skip this file - filename too long
                     entry.close();
                     continue;
                 }
@@ -100,7 +140,9 @@ void scanDirectoryRecursive(const char* path, bool saved) {
                 if (saved && strcmp(name, savefilefull) == 0) {
                     for (int i = 0; i < 6; i++) tfifilenumber[i] = n;
                 }
-                
+
+                extractFolderName(fullPath, file_folders[n]);
+
                 n++;
                 
                 // Update progress display occasionally
@@ -397,7 +439,7 @@ void savenew(void) {
     
     // Find new patch filename
     while (savenumber < 1000) {
-        sprintf(savefilefull, "/tfi/newpatch%03d.tfi", savenumber);
+        sprintf(savefilefull, "/tfi/user/newpatch%03d.tfi", savenumber);
         if (!SD.exists(savefilefull)) {
             break;  // Found available filename
         }

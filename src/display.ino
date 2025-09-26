@@ -20,12 +20,16 @@ void updateFileDisplay(void) {
         return;
     }
     
-    // Show filename on screen - display the BROWSED TFI number, not loaded
     char display_buffer[32];
+    uint16_t current_count = getCurrentTfiCount();
+    const char* mode_str = getTfiBrowseModeString();
+
     if (mode == 3) {
-        sprintf(display_buffer, "P %03d/%03d", tfifilenumber[0] + 1, n);  // Changed to tfifilenumber
+        uint16_t display_index = (current_count > 0) ? getCurrentTfiIndex(1) + 1 : 0;
+        sprintf(display_buffer, "%s %03d/%03d", mode_str, display_index, current_count);
     } else {
-        sprintf(display_buffer, "C%d %03d/%03d", tfichannel, tfifilenumber[tfichannel-1] + 1, n);  // Changed to tfifilenumber
+        uint16_t display_index = (current_count > 0) ? getCurrentTfiIndex(tfichannel) + 1 : 0;
+        sprintf(display_buffer, "C%d %s %03d/%03d", tfichannel, mode_str, display_index, current_count);
     }
     
     oled_clear();
@@ -41,23 +45,31 @@ void updateFileDisplay(void) {
         oled_print(75, 0, midi_buffer);
     }
     
-    // Show the currently browsed filename on line 2 (truncated to prevent wrapping)
     uint16_t browsed_idx = (mode == 3) ? tfifilenumber[0] : tfifilenumber[tfichannel-1];
-    char truncated_name[21]; // 20 chars + null terminator
-    strncpy(truncated_name, filenames[browsed_idx], 20);
-    truncated_name[20] = '\0'; // Ensure null termination
-    oled_print(0, 16, truncated_name);
 
-    // Handle line 3 (24) - show instruction or loading message
-    // Clear the entire bottom line first to prevent any collision
-    oled_print(0, 24, "                    ");  // Always clear with spaces first
+    bool is_user_file = (browsed_idx < user_file_count);
+    if (!is_user_file && current_count > 0) {
+        char folder_line[22];
+        snprintf(folder_line, 22, ">%s", file_folders[browsed_idx]);
+        oled_print(0, 8, folder_line);
+    } else {
+        oled_print(0, 8, "                    ");
+    }
+
+    if (current_count > 0) {
+        char filename_line[22];
+        snprintf(filename_line, 22, ">%s", filenames[browsed_idx]);
+        oled_print(0, 16, filename_line);
+    } else {
+        oled_print(0, 16, ">No files");
+    }
+
+    oled_print(0, 24, "                    ");
 
     if (showing_loading) {
-        // Show loading message
         oled_print(0, 24, "Loading TFI...");
     } else {
-        // Show instruction
-        oled_print(0, 24, "OPT1 TO SEL");
+        oled_print(0, 24, "OPT1:Load OPT2:Mode");
     }
     
     showAccelerationFeedback();
@@ -447,14 +459,6 @@ void showAccelerationFeedback(void) {
     // Only show feedback in preset browsing modes
     if (mode != 1 && mode != 3) return;
     
-    // Add acceleration indicator to display
-    if (hold_duration > hold_threshold_2) {
-        // Show turbo indicator
-        oled_print(120, 0, ">>>");
-    } else if (hold_duration > hold_threshold_1) {
-        // Show fast indicator
-        oled_print(120, 0, ">>");
-    }
 }
 
 void updateMidiDisplay(uint8_t channel, uint8_t note) {

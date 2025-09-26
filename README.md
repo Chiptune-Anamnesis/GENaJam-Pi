@@ -1,4 +1,4 @@
-# GENajam-Pi v1.31
+# GENajam-Pi v1.32
 
 A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This is a modernized version of the original Arduino Mega 2560 GENajam by JAMATAR, featuring enhanced file browsing, real-time MIDI display, and improved responsiveness.
 
@@ -24,6 +24,11 @@ A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scal
 - **Stuckless mode switching** - Switching between poly and mono sends a note off command for all notes to avoid stuck notes.
 - **True mono mode** - One note at a time per channel with last-note priority.
 - **Velocity Settings** - Hard / Medium / Soft / Original
+- **User/Library File Organization** - User files stored in `/tfi/user/`, library files in `/tfi/`
+- **Browse Mode Toggle** - Switch between ALL, USER, or LIBRARY files with OPT2
+- **Folder-Aware Browsing** - Display current folder name during library file browsing
+- **Alphabetical Folder Sorting** - Library files sorted by folder name, then filename
+- **Faster Startup** - Reduced delays for quicker boot to visualizer mode
 
 ## Hardware Requirements
 
@@ -76,10 +81,11 @@ Buttons (Digital, with pullups):
 - Continuous animation during music playback
 
 #### Presets Mode
-- Browse and load TFI files per channel (1-6)
+- Browse and load TFI files per channel (1-6) with folder-aware display
 - **UP/DOWN**: Select FM channel
-- **LEFT/RIGHT**: Browse TFI files in `/tfi/` folder
+- **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
 - **OPT1**: Load selected TFI to current channel
+- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY)
 
 #### FM Edit Mode
 - Real-time FM parameter editing for current channel
@@ -109,10 +115,11 @@ Buttons (Digital, with pullups):
 - Same 4 sub-modes as MONO, shows polyphonic activity
 
 #### Presets Mode
-- Browse TFI files for all 6 channels simultaneously
-- **LEFT/RIGHT**: Browse TFI files
+- Browse TFI files for all 6 channels simultaneously with folder-aware display
+- **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
 - **OPT1**: Load selected TFI to all 6 channels
-- **OPT2**: Save prompt for current TFI
+- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY)
+- **UP**: Save prompt for current TFI
 - **DELETE**: Delete TFI file
 
 #### FM Edit Mode
@@ -146,7 +153,8 @@ Buttons (Digital, with pullups):
   
   ├─ UP/DOWN: Select channel (MONO) or all channels (POLY)
   
-  └─ OPT1: Load selected TFI
+  ├─ OPT1: Load selected TFI
+  └─ OPT1: Toggle browse mode (ALL/USER/LIBRARY)
   
 
   FM EDIT MODE:
@@ -199,9 +207,15 @@ Buttons (Digital, with pullups):
 ## File Management
 
 ### TFI File Support
+- **Separated file organization** - Library files in `/tfi/`, user files in `/tfi/user/`
+- **Browse mode toggle** - Switch between ALL, USER, or LIBRARY files with OPT2
+- **Folder-aware browsing** - Shows current folder name during library file navigation
+- **Alphabetical organization** - Library files sorted by folder, then filename
+- **Smart file limits** - 150 user files, 400 library files (550 total)
+- **Priority file indexing** - User files appear first in ALL mode
 - **Recursive directory scanning** - finds files in any folder depth
 - **Fast file browsing** with acceleration (hold buttons for turbo speed)
-- **Save new patches** - automatically numbered (newpatch001.tfi, etc.)
+- **Save new patches** - automatically numbered in `/tfi/user/` (newpatch001.tfi, etc.)
 - **Overwrite existing** - update files in place
 - **Delete files** - with confirmation prompt
 
@@ -226,10 +240,25 @@ Buttons (Digital, with pullups):
     └── settings.ini
 ```
 
+## System Limits
+
+### File Capacity
+- **User TFI files**: 150 maximum (stored in `/tfi/user/`)
+- **Library TFI files**: 400 maximum (stored in `/tfi/` and subdirectories)
+- **Total TFI files**: 550 maximum
+- **Preset banks**: No specific limit (stored in `/presets/`)
+
+### File Path Limits
+- **File paths**: 96 characters maximum (including folder structure)
+- **Display names**: 48 characters maximum (filename without `.tfi`)
+- **Folder names**: 16 characters maximum for display
+
+*Files exceeding these limits will be automatically skipped during scanning.*
+
 ## Getting Started
 
 ### Quick Installation (Recommended)
-1. **Download** the latest `genajam-pico-v1.31.uf2` file from releases
+1. **Download** the latest `genajam-pico-v1.32.uf2` file from releases
 2. **Hold the BOOTSEL button** on your Pico and plug it into USB
 3. **Drag and drop** the UF2 file onto the RPI-RP2 drive that appears
 4. **Setup complete!** - The Pico will automatically reboot and start GenaJam
@@ -260,7 +289,7 @@ Buttons (Digital, with pullups):
 - **UP/DOWN**: Select channel (mono) or save options (poly)
 - **DELETE**: Delete files (poly mode only)
 - **PANIC**: Emergency all-notes-off
-- **OPT1**: Future Feature Placeholder
+- **OPT1**: Toggle browse mode (ALL/USER/LIBRARY)
 - **OPT2**: Future Feature Placeholder
 
 ### Editing
@@ -314,4 +343,3 @@ Open source hardware and software project. Use and modify as needed for your mus
 ---
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
-

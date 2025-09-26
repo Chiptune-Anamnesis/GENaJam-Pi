@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.31";
+const char* GENAJAM_VERSION = "v1.32";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -102,7 +102,10 @@ uint8_t refreshscreen = 0;
 // File handling - OPTIMIZED for memory efficiency
 const uint8_t MaxNumberOfChars = 48;  // Increased for better filename support
 uint16_t n = 0;
-const uint16_t nMax = 500;             // Reduced to prevent memory exhaustion
+const uint16_t nMaxTotal = 550;
+const uint16_t nMaxUser = 150;
+const uint16_t nMaxLibrary = 400;
+const uint16_t nMax = nMaxTotal;
 char filenames[nMax][MaxNumberOfChars + 1];
 static const uint8_t FullNameChars = 96;
 char fullnames[nMax][FullNameChars];
@@ -115,6 +118,13 @@ uint8_t last_held_button = btnNONE;
 bool button_is_held = false;
 uint64_t last_button_release_time = 0;
 const uint16_t initial_debounce = 300;   // Increased debounce for better stability
+
+enum TfiBrowseMode { TFI_ALL, TFI_USER, TFI_LIBRARY };
+TfiBrowseMode current_tfi_mode = TFI_ALL;
+uint16_t user_file_count = 0;
+
+char file_folders[nMaxTotal][16];
+bool folder_display_enabled = true;
 const uint16_t fast_debounce = 100;      // Fast debounce after acceleration
 const uint16_t turbo_debounce = 40;      // Turbo speed for long holds
 const uint16_t hold_threshold_1 = 3000;  // 3 seconds to start acceleration (much longer delay)
@@ -263,7 +273,7 @@ void updatePotHistory() {
 
 // Save file variables
 uint16_t savenumber = 1;
-char savefilefull[] = "/tfi/newpatch001.tfi";
+char savefilefull[] = "/tfi/user/newpatch001.tfi";
 
 // Flash storage replacement with EEPROM
 void flash_write_settings(uint8_t region_val, uint8_t midi_ch, uint8_t vel_curve);
@@ -284,6 +294,16 @@ void bootprompt(void);
 // File operations
 void scandir(bool saved);
 void saveprompt(void);
+
+void toggleTfiBrowseMode(void);
+void updateTfiSelection(void);
+const char* getTfiBrowseModeString(void);
+uint16_t getCurrentTfiCount(void);
+uint16_t getCurrentTfiIndex(uint8_t channel);
+void navigateTfiRight(uint8_t channel);
+void navigateTfiLeft(uint8_t channel);
+void extractFolderName(const char* fullPath, char* folderName);
+void sortFilesByFolder(void);
 void savenew(void);
 void saveoverwrite(void);
 void deletefile(void);
@@ -385,6 +405,19 @@ void setup() {
     }
   }
 
+  // Create user subfolder for TFI files
+  if (!SD.exists("/tfi/user")) {
+    if (SD.mkdir("/tfi/user")) {
+      display.clearDisplay();
+      display.setCursor(0, 0);
+      display.print("Created user");
+      display.setCursor(0, 16);
+      display.print("TFI folder");
+      display.display();
+      delay(1000);
+    }
+  }
+
   if (!SD.exists("/presets")) {
     if (SD.mkdir("/presets")) {
       display.clearDisplay();
@@ -404,23 +437,20 @@ void setup() {
   display.setCursor(0, 0);
   display.print("Setup complete!");
   display.setCursor(0, 8);
-  display.print("Files found: ");
-  display.print(n);
-  display.setCursor(0, 24);
-  display.print("Please wait..");
+  display.print("User: ");
+  display.print(user_file_count);
+  display.print(" Lib: ");
+  display.print(n - user_file_count);
   display.display();
 
-  // CLEAR any accumulated MIDI data before enabling processing
-  delay(100);  // Let any pending MIDI settle
+  // Show file totals for 1 second
+  delay(1000);
 
-  // Aggressive buffer clearing - drain everything multiple times
-  for (int i = 0; i < 10; i++) {
-    MIDI.read();  // Clear UART MIDI buffer
-    while (usb_midi.available()) {
-      uint8_t packet[4];
-      usb_midi.readPacket(packet);  // Clear USB MIDI buffer
-    }
-    delay(10);  // Small delay between clears
+  // CLEAR any accumulated MIDI data before enabling processing
+  MIDI.read();  // Clear UART MIDI buffer
+  while (usb_midi.available()) {
+    uint8_t packet[4];
+    usb_midi.readPacket(packet);  // Clear USB MIDI buffer
   }
 
   // Reset all MIDI state to prevent phantom notes
@@ -428,9 +458,6 @@ void setup() {
 
   // ENABLE MIDI processing - setup is now complete
   system_ready = true;
-
-  // Additional settling time after enabling
-  delay(200);
 
   // Initialize all channels with immediate loading (no delay during setup)
   for (int i = 6; i > 0; i--) {
@@ -440,9 +467,6 @@ void setup() {
 
   // Set booted flag to skip old boot prompt
   booted = 1;
-
-  // Wait 2 seconds then auto-start visualizer
-  delay(2000);
   edit_mode = 0; // Switch to VISUALIZER mode (now at position 0)
   updateGlobalMode();
   showModeMessage();
@@ -572,25 +596,18 @@ void loop() {
       case 1: // MONO PRESET
         switch (lcd_key) {
           case btnRIGHT:
-            // Just browse, don't load automatically
+            // Navigate right in current browse mode
             if (tfichannel >= 1 && tfichannel <= 6) {
-              tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)]++;
-              if (tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)] >= n) {
-                tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)] = 0;
-              }
-              updateFileDisplay(); // Just update display, no loading
+              navigateTfiRight(tfichannel);
+              updateFileDisplay();
             }
             break;
 
           case btnLEFT:
-            // Just browse, don't load automatically
+            // Navigate left in current browse mode
             if (tfichannel >= 1 && tfichannel <= 6) {
-              if (tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)] == 0) {
-                tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)] = n - 1;
-              } else {
-                tfifilenumber[SAFE_CHANNEL_INDEX(tfichannel)]--;
-              }
-              updateFileDisplay(); // Just update display, no loading
+              navigateTfiLeft(tfichannel);
+              updateFileDisplay();
             }
             break;
 
@@ -621,6 +638,12 @@ void loop() {
 
             // Load the currently browsed TFI immediately
             tfiLoadImmediateOnChannel(tfichannel);
+            updateFileDisplay();
+            break;
+
+          case btnOPT2:
+            // Toggle between ALL/USER/LIBRARY browse modes
+            toggleTfiBrowseMode();
             updateFileDisplay();
             break;
 
@@ -736,34 +759,29 @@ void loop() {
       case 1: // POLY PRESET
         switch (lcd_key) {
           case btnRIGHT:
-            // Just browse, don't load automatically
+            // Navigate right in current browse mode (affects all channels)
             tfichannel = 1;
-            tfifilenumber[tfichannel - 1]++;
-            if (tfifilenumber[tfichannel - 1] >= n) {
-              tfifilenumber[tfichannel - 1] = 0;
-            }
+            navigateTfiRight(1);
             for (int i = 1; i <= 5; i++) {
               tfifilenumber[i] = tfifilenumber[0];
             }
-            updateFileDisplay(); // Just update display, no loading
+            updateFileDisplay();
             break;
 
           case btnLEFT:
-            // Just browse, don't load automatically
+            // Navigate left in current browse mode (affects all channels)
             tfichannel = 1;
-            if (tfifilenumber[tfichannel - 1] == 0) {
-              tfifilenumber[tfichannel - 1] = n - 1;
-            } else {
-              tfifilenumber[tfichannel - 1]--;
-            }
+            navigateTfiLeft(1);
             for (int i = 1; i <= 5; i++) {
               tfifilenumber[i] = tfifilenumber[0];
             }
-            updateFileDisplay(); // Just update display, no loading
+            updateFileDisplay();
             break;
 
           case btnOPT2:
-            saveprompt();
+            // Toggle between ALL/USER/LIBRARY browse modes
+            toggleTfiBrowseMode();
+            updateFileDisplay();
             break;
 
           case btnSELECT:
@@ -771,7 +789,7 @@ void loop() {
             break;
 
           case btnOPT1:
-            // Show loading message
+            // Load the currently browsed TFI immediately on all poly channels
             mutex_enter_blocking(&display_mutex);
             display.clearDisplay();
             display.setCursor(0, 0);
@@ -779,13 +797,16 @@ void loop() {
             display.display();
             mutex_exit(&display_mutex);
 
-            // Load the currently browsed TFI immediately on all poly channels
             for (int i = 1; i <= 6; i++) {
               tfichannel = i;
               tfiLoadImmediateOnChannel(i);
             }
             tfichannel = 1; // Reset to channel 1
             updateFileDisplay();
+            break;
+
+          case btnUP:
+            saveprompt();
             break;
 
           case btnPOLY:
@@ -1241,5 +1262,202 @@ void core1_entry() {
 
     // Small delay to prevent overwhelming the system
     sleep_us(100);
+  }
+}
+
+// TFI browse mode management functions
+void toggleTfiBrowseMode(void) {
+  switch (current_tfi_mode) {
+    case TFI_ALL:
+      current_tfi_mode = TFI_USER;
+      break;
+    case TFI_USER:
+      current_tfi_mode = TFI_LIBRARY;
+      break;
+    case TFI_LIBRARY:
+      current_tfi_mode = TFI_ALL;
+      break;
+  }
+  updateTfiSelection();
+}
+
+void updateTfiSelection(void) {
+  // Clamp file selections to valid ranges for current mode
+  for (int i = 0; i < 6; i++) {
+    uint16_t max_files = getCurrentTfiCount();
+    if (max_files == 0) {
+      tfifilenumber[i] = 0;
+    } else {
+      // Map current selection to valid range
+      switch (current_tfi_mode) {
+        case TFI_USER:
+          if (tfifilenumber[i] >= user_file_count) {
+            tfifilenumber[i] = 0;  // Reset to first user file
+          }
+          break;
+        case TFI_LIBRARY:
+          if (tfifilenumber[i] < user_file_count || tfifilenumber[i] >= n) {
+            tfifilenumber[i] = user_file_count;  // Reset to first library file
+          }
+          break;
+        case TFI_ALL:
+          if (tfifilenumber[i] >= n) {
+            tfifilenumber[i] = 0;  // Reset to first file
+          }
+          break;
+      }
+    }
+  }
+}
+
+const char* getTfiBrowseModeString(void) {
+  switch (current_tfi_mode) {
+    case TFI_USER: return "USER";
+    case TFI_LIBRARY: return "LIB";
+    case TFI_ALL: return "ALL";
+    default: return "ALL";
+  }
+}
+
+uint16_t getCurrentTfiCount(void) {
+  switch (current_tfi_mode) {
+    case TFI_USER: return user_file_count;
+    case TFI_LIBRARY: return (n > user_file_count) ? (n - user_file_count) : 0;
+    case TFI_ALL: return n;
+    default: return n;
+  }
+}
+
+uint16_t getCurrentTfiIndex(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t raw_index = tfifilenumber[safe_channel];
+
+  switch (current_tfi_mode) {
+    case TFI_USER:
+      return raw_index;  // User files are at indices 0 to user_file_count-1
+    case TFI_LIBRARY:
+      return raw_index - user_file_count;  // Adjust for display (0-based library count)
+    case TFI_ALL:
+      return raw_index;  // No adjustment needed
+    default:
+      return raw_index;
+  }
+}
+
+void navigateTfiRight(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t current_count = getCurrentTfiCount();
+  if (current_count == 0) return;
+
+  switch (current_tfi_mode) {
+    case TFI_USER:
+      tfifilenumber[safe_channel]++;
+      if (tfifilenumber[safe_channel] >= user_file_count) {
+        tfifilenumber[safe_channel] = 0;
+      }
+      break;
+    case TFI_LIBRARY:
+      tfifilenumber[safe_channel]++;
+      if (tfifilenumber[safe_channel] >= n) {
+        tfifilenumber[safe_channel] = user_file_count;
+      }
+      break;
+    case TFI_ALL:
+      tfifilenumber[safe_channel]++;
+      if (tfifilenumber[safe_channel] >= n) {
+        tfifilenumber[safe_channel] = 0;
+      }
+      break;
+  }
+}
+
+void navigateTfiLeft(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t current_count = getCurrentTfiCount();
+  if (current_count == 0) return;
+
+  switch (current_tfi_mode) {
+    case TFI_USER:
+      if (tfifilenumber[safe_channel] == 0) {
+        tfifilenumber[safe_channel] = user_file_count - 1;
+      } else {
+        tfifilenumber[safe_channel]--;
+      }
+      break;
+    case TFI_LIBRARY:
+      if (tfifilenumber[safe_channel] <= user_file_count) {
+        tfifilenumber[safe_channel] = n - 1;
+      } else {
+        tfifilenumber[safe_channel]--;
+      }
+      break;
+    case TFI_ALL:
+      if (tfifilenumber[safe_channel] == 0) {
+        tfifilenumber[safe_channel] = n - 1;
+      } else {
+        tfifilenumber[safe_channel]--;
+      }
+      break;
+  }
+}
+
+void extractFolderName(const char* fullPath, char* folderName) {
+  const char* lastSlash = strrchr(fullPath, '/');
+  if (lastSlash == NULL) {
+    strcpy(folderName, "root");
+    return;
+  }
+
+  const char* secondLastSlash = lastSlash - 1;
+  while (secondLastSlash > fullPath && *secondLastSlash != '/') {
+    secondLastSlash--;
+  }
+
+  if (*secondLastSlash == '/') secondLastSlash++;
+
+  int len = lastSlash - secondLastSlash;
+  if (len > 15) len = 15;
+  strncpy(folderName, secondLastSlash, len);
+  folderName[len] = '\0';
+}
+
+void sortFilesByFolder(void) {
+  // Only sort library files (skip user files which are already at the beginning)
+  if (n <= user_file_count) return;  // No library files to sort
+
+  // Bubble sort library files by folder name, then by filename
+  for (int i = user_file_count; i < n - 1; i++) {
+    for (int j = user_file_count; j < n - 1 - (i - user_file_count); j++) {
+      bool should_swap = false;
+
+      // First compare folder names
+      int folder_compare = strcmp(file_folders[j], file_folders[j + 1]);
+      if (folder_compare > 0) {
+        should_swap = true;
+      } else if (folder_compare == 0) {
+        // Same folder, compare filenames
+        if (strcmp(filenames[j], filenames[j + 1]) > 0) {
+          should_swap = true;
+        }
+      }
+
+      if (should_swap) {
+        char temp_filename[MaxNumberOfChars + 1];
+        char temp_fullname[FullNameChars];
+        char temp_folder[16];
+
+        strcpy(temp_filename, filenames[j]);
+        strcpy(filenames[j], filenames[j + 1]);
+        strcpy(filenames[j + 1], temp_filename);
+
+        strcpy(temp_fullname, fullnames[j]);
+        strcpy(fullnames[j], fullnames[j + 1]);
+        strcpy(fullnames[j + 1], temp_fullname);
+
+        strcpy(temp_folder, file_folders[j]);
+        strcpy(file_folders[j], file_folders[j + 1]);
+        strcpy(file_folders[j + 1], temp_folder);
+      }
+    }
   }
 }
