@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.34";
+const char* GENAJAM_VERSION = "v1.35";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -121,12 +121,18 @@ const uint16_t initial_debounce = 300;   // Increased debounce for better stabil
 
 enum TfiBrowseMode { TFI_ALL, TFI_USER, TFI_LIBRARY };
 TfiBrowseMode current_tfi_mode = TFI_ALL;
+bool preview_mode = false;
+const uint8_t PREVIEW_NOTE = 60; // Middle C for preview
+unsigned long preview_note_start = 0;
+bool preview_note_playing = false;
+uint8_t preview_channel = 0;
+bool opt1_preview_playing = false;
 uint16_t user_file_count = 0;
 
 char file_folders[nMaxTotal][16];
 bool folder_display_enabled = true;
-const uint16_t fast_debounce = 100;      // Fast debounce after acceleration
-const uint16_t turbo_debounce = 40;      // Turbo speed for long holds
+const uint16_t fast_debounce = 80;       // Fast debounce after acceleration
+const uint16_t turbo_debounce = 25;      // Turbo speed for long holds
 const uint16_t hold_threshold_1 = 3000;  // 3 seconds to start acceleration (much longer delay)
 const uint16_t hold_threshold_2 = 6000;  // 6 seconds to go turbo (much longer delay)
 // Current TFI actually loaded on each channel
@@ -302,6 +308,7 @@ uint16_t getCurrentTfiCount(void);
 uint16_t getCurrentTfiIndex(uint8_t channel);
 void navigateTfiRight(uint8_t channel);
 void navigateTfiLeft(uint8_t channel);
+void previewCurrentTfi(uint8_t channel);
 void extractFolderName(const char* fullPath, char* folderName);
 void sortFilesByFolder(void);
 void savenew(void);
@@ -358,6 +365,9 @@ void setup() {
   setup_oled();
   setup_sd();
   setup_midi();
+
+  // Initialize FM chip to clean default state at startup
+  initializeFMChip();
 
   // Initialize mutex
   mutex_init(&viz_mutex);
@@ -487,6 +497,12 @@ void loop() {
 
     // Process MIDI again before any display work
     handle_midi_input();
+
+    // Handle preview note timeout
+    if (preview_note_playing && (current_time - preview_note_start >= 300)) {
+      midi_send_note_off(preview_channel, PREVIEW_NOTE, 0);
+      preview_note_playing = false;
+    }
 
     // Handle cached display updates for preset modes
     if (display_needs_refresh && edit_mode == 1) {  // Preset mode now at position 1
@@ -628,17 +644,27 @@ void loop() {
             break;
 
           case btnOPT1:
-            // Show loading message
-            mutex_enter_blocking(&display_mutex);
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            display.print("Loading TFI...");
-            display.display();
-            mutex_exit(&display_mutex);
+            if (preview_mode) {
+              // Load the TFI first, then start preview note
+              if (!opt1_preview_playing) {
+                tfiLoadImmediateOnChannel(tfichannel);
+                midi_send_note_on(tfichannel, PREVIEW_NOTE, 127);
+                opt1_preview_playing = true;
+              }
+            } else {
+              // Normal load behavior in non-preview modes
+              // Show loading message
+              mutex_enter_blocking(&display_mutex);
+              display.clearDisplay();
+              display.setCursor(0, 0);
+              display.print("Loading TFI...");
+              display.display();
+              mutex_exit(&display_mutex);
 
-            // Load the currently browsed TFI immediately
-            tfiLoadImmediateOnChannel(tfichannel);
-            updateFileDisplay();
+              // Load the currently browsed TFI immediately
+              tfiLoadImmediateOnChannel(tfichannel);
+              updateFileDisplay();
+            }
             break;
 
           case btnOPT2:
@@ -789,20 +815,32 @@ void loop() {
             break;
 
           case btnOPT1:
-            // Load the currently browsed TFI immediately on all poly channels
-            mutex_enter_blocking(&display_mutex);
-            display.clearDisplay();
-            display.setCursor(0, 0);
-            display.print("Loading TFI...");
-            display.display();
-            mutex_exit(&display_mutex);
+            if (preview_mode) {
+              // Load the TFI on all channels first, then start preview note on channel 1
+              if (!opt1_preview_playing) {
+                for (int i = 1; i <= 6; i++) {
+                  tfiLoadImmediateOnChannel(i);
+                }
+                midi_send_note_on(1, PREVIEW_NOTE, 127);
+                opt1_preview_playing = true;
+              }
+            } else {
+              // Normal load behavior in non-preview modes
+              // Load the currently browsed TFI immediately on all poly channels
+              mutex_enter_blocking(&display_mutex);
+              display.clearDisplay();
+              display.setCursor(0, 0);
+              display.print("Loading TFI...");
+              display.display();
+              mutex_exit(&display_mutex);
 
-            for (int i = 1; i <= 6; i++) {
-              tfichannel = i;
-              tfiLoadImmediateOnChannel(i);
+              for (int i = 1; i <= 6; i++) {
+                tfichannel = i;
+                tfiLoadImmediateOnChannel(i);
+              }
+              tfichannel = 1; // Reset to channel 1
+              updateFileDisplay();
             }
-            tfichannel = 1; // Reset to channel 1
-            updateFileDisplay();
             break;
 
           case btnUP:
@@ -1083,6 +1121,12 @@ uint8_t read_buttons(void) {
 
   // If no button currently pressed, reset acceleration and return
   if (current_button == btnNONE) {
+    // Stop OPT1 preview note if it was playing
+    if (opt1_preview_playing) {
+      midi_send_note_off(preview_channel > 0 ? preview_channel : tfichannel, PREVIEW_NOTE, 0);
+      opt1_preview_playing = false;
+    }
+
     // Reset all hold state to exit acceleration mode immediately
     if (button_is_held) {
       last_button_release_time = current_time; // Record when button was released
@@ -1267,50 +1311,76 @@ void core1_entry() {
 
 // TFI browse mode management functions
 void toggleTfiBrowseMode(void) {
-  switch (current_tfi_mode) {
-    case TFI_ALL:
-      current_tfi_mode = TFI_USER;
-      break;
-    case TFI_USER:
-      current_tfi_mode = TFI_LIBRARY;
-      break;
-    case TFI_LIBRARY:
-      current_tfi_mode = TFI_ALL;
-      break;
+  if (!preview_mode) {
+    // Cycle through browse modes first
+    switch (current_tfi_mode) {
+      case TFI_ALL:
+        current_tfi_mode = TFI_USER;
+        break;
+      case TFI_USER:
+        current_tfi_mode = TFI_LIBRARY;
+        break;
+      case TFI_LIBRARY:
+        preview_mode = true;
+        break;
+    }
+  } else {
+    // Exit preview mode and go back to ALL
+    preview_mode = false;
+    current_tfi_mode = TFI_ALL;
   }
   updateTfiSelection();
 }
 
 void updateTfiSelection(void) {
-  // Clamp file selections to valid ranges for current mode
+  // Try to preserve currently loaded TFI when switching modes
   for (int i = 0; i < 6; i++) {
     uint16_t max_files = getCurrentTfiCount();
     if (max_files == 0) {
       tfifilenumber[i] = 0;
     } else {
-      // Map current selection to valid range
+      // First try to keep the currently loaded TFI
+      uint16_t currently_loaded = loaded_tfi[i];
+
+      // Check if the currently loaded TFI is valid in the new mode
+      bool is_valid_in_mode = false;
       switch (current_tfi_mode) {
         case TFI_USER:
-          if (tfifilenumber[i] >= user_file_count) {
-            tfifilenumber[i] = 0;  // Reset to first user file
-          }
+          is_valid_in_mode = (currently_loaded < user_file_count);
           break;
         case TFI_LIBRARY:
-          if (tfifilenumber[i] < user_file_count || tfifilenumber[i] >= n) {
-            tfifilenumber[i] = user_file_count;  // Reset to first library file
-          }
+          is_valid_in_mode = (currently_loaded >= user_file_count && currently_loaded < n);
           break;
         case TFI_ALL:
-          if (tfifilenumber[i] >= n) {
-            tfifilenumber[i] = 0;  // Reset to first file
-          }
+          is_valid_in_mode = (currently_loaded < n);
           break;
+      }
+
+      if (is_valid_in_mode) {
+        // Keep the currently loaded TFI
+        tfifilenumber[i] = currently_loaded;
+      } else {
+        // Fall back to safe defaults if currently loaded TFI not valid in this mode
+        switch (current_tfi_mode) {
+          case TFI_USER:
+            tfifilenumber[i] = 0;  // First user file
+            break;
+          case TFI_LIBRARY:
+            tfifilenumber[i] = user_file_count;  // First library file
+            break;
+          case TFI_ALL:
+            tfifilenumber[i] = currently_loaded < n ? currently_loaded : 0;  // Keep if possible, else first file
+            break;
+        }
       }
     }
   }
 }
 
 const char* getTfiBrowseModeString(void) {
+  if (preview_mode) {
+    return "PRVW";
+  }
   switch (current_tfi_mode) {
     case TFI_USER: return "USER";
     case TFI_LIBRARY: return "LIB";
@@ -1369,6 +1439,9 @@ void navigateTfiRight(uint8_t channel) {
       }
       break;
   }
+
+  // Preview the TFI if in preview mode
+  previewCurrentTfi(channel);
 }
 
 void navigateTfiLeft(uint8_t channel) {
@@ -1399,6 +1472,30 @@ void navigateTfiLeft(uint8_t channel) {
       }
       break;
   }
+
+  // Preview the TFI if in preview mode
+  previewCurrentTfi(channel);
+}
+
+void previewCurrentTfi(uint8_t channel) {
+  if (!preview_mode) return; // Only work in preview mode
+
+  // Check if we're in actual acceleration (not just single button press)
+  uint32_t hold_duration = millis() - button_hold_start_time;
+  bool is_accelerating = (button_is_held && hold_duration > hold_threshold_1);
+
+  if (is_accelerating) return; // Don't preview during fast browsing
+
+  // Show loading message
+  mutex_enter_blocking(&display_mutex);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Loading TFI...");
+  display.display();
+  mutex_exit(&display_mutex);
+
+  // Load the currently browsed TFI immediately
+  tfiLoadImmediateOnChannel(channel);
 }
 
 void extractFolderName(const char* fullPath, char* folderName) {

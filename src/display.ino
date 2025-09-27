@@ -69,7 +69,11 @@ void updateFileDisplay(void) {
     if (showing_loading) {
         oled_print(0, 24, "Loading TFI...");
     } else {
-        oled_print(0, 24, "OPT1:Load OPT2:Mode");
+        if (preview_mode) {
+            oled_print(0, 24, "OPT1:Play OPT2:Exit");
+        } else {
+            oled_print(0, 24, "OPT1:Load OPT2:Mode");
+        }
     }
     
     showAccelerationFeedback();

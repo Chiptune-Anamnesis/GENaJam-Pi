@@ -1,4 +1,4 @@
-# GENajam-Pi v1.34
+# GENajam-Pi v1.35
 
 A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This is a modernized version of the original Arduino GENajam by JAMATAR, featuring enhanced file browsing, real-time MIDI display, and improved responsiveness.
 
@@ -25,10 +25,29 @@ A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scal
 - **True mono mode** - One note at a time per channel with last-note priority.
 - **Velocity Settings** - Hard / Medium / Soft / Original
 - **User/Library File Organization** - User files stored in `/tfi/user/`, library files in `/tfi/`
-- **Browse Mode Toggle** - Switch between ALL, USER, or LIBRARY files with OPT2
+- **Browse Mode Toggle** - Switch between ALL, USER, LIBRARY, or PREVIEW files with OPT2
 - **Folder-Aware Browsing** - Display current folder name during library file browsing
 - **Alphabetical Folder Sorting** - Library files sorted by folder name, then filename
 - **Faster Startup** - Reduced delays for quicker boot to visualizer mode
+
+### TFI Preview Mode
+A special browsing mode that combines automatic loading with manual sound preview:
+
+**Auto-Loading:**
+- TFI files automatically load when browsing with LEFT/RIGHT arrows
+- No need to press OPT1 to load - happens instantly
+- Shows "Loading TFI..." message during auto-load
+
+**Manual Preview:**
+- Press and hold OPT1 to play a preview note (Middle C)
+- Note plays as long as OPT1 is held down
+- Uses the currently browsed TFI instrument
+- Full velocity (127) for clear audio preview
+
+**Usage:**
+- Access via OPT2 button: ALL → USER → LIBRARY → **PREVIEW** → ALL
+- Display shows "PRVW" mode and "OPT1:Play OPT2:Exit"
+- Ideal for quickly auditioning many instruments without manual loading
 
 ## Hardware Requirements
 
@@ -85,7 +104,8 @@ Buttons (Digital, with pullups):
 - **UP/DOWN**: Select FM channel
 - **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
 - **OPT1**: Load selected TFI to current channel
-- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY)
+- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY/PREVIEW)
+  - **PREVIEW mode**: Auto-loads TFI files when browsing + OPT1 to play preview notes
 
 #### FM Edit Mode
 - Real-time FM parameter editing for current channel
@@ -118,7 +138,8 @@ Buttons (Digital, with pullups):
 - Browse TFI files for all 6 channels simultaneously with folder-aware display
 - **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
 - **OPT1**: Load selected TFI to all 6 channels
-- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY)
+- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY/PREVIEW)
+  - **PREVIEW mode**: Auto-loads TFI files when browsing + OPT1 to play preview notes on channel 1
 - **UP**: Save prompt for current TFI
 - **DELETE**: Delete TFI file
 
@@ -208,7 +229,8 @@ Buttons (Digital, with pullups):
 
 ### TFI File Support
 - **Separated file organization** - Library files in `/tfi/`, user files in `/tfi/user/`
-- **Browse mode toggle** - Switch between ALL, USER, or LIBRARY files with OPT2
+- **Browse mode toggle** - Switch between ALL, USER, LIBRARY, or PREVIEW files with OPT2
+- **TFI Preview Mode** - Auto-load TFI files when browsing + manual preview notes with OPT1
 - **Folder-aware browsing** - Shows current folder name during library file navigation
 - **Alphabetical organization** - Library files sorted by folder, then filename
 - **Smart file limits** - 150 user files, 400 library files (550 total)
@@ -258,7 +280,7 @@ Buttons (Digital, with pullups):
 ## Getting Started
 
 ### Quick Installation (Recommended)
-1. **Download** the latest `genajam-pico-v1.34.uf2` file from releases
+1. **Download** the latest `genajam-pico-v1.35.uf2` file from releases
 2. **Hold the BOOTSEL button** on your Pico and plug it into USB
 3. **Drag and drop** the UF2 file onto the RPI-RP2 drive that appears
 4. **Setup complete!** - The Pico will automatically reboot and start GenaJam
