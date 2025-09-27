@@ -471,10 +471,10 @@ void savenew(void) {
     tfiarray[13] = fmsettings[tfichannel-1][13] / 32;  // OP3 Detune
     tfiarray[23] = fmsettings[tfichannel-1][23] / 32;  // OP2 Detune
     tfiarray[33] = fmsettings[tfichannel-1][33] / 32;  // OP4 Detune
-    tfiarray[4] = 127 - fmsettings[tfichannel-1][4];   // OP1 Total Level
-    tfiarray[14] = 127 - fmsettings[tfichannel-1][14]; // OP3 Total Level
-    tfiarray[24] = 127 - fmsettings[tfichannel-1][24]; // OP2 Total Level
-    tfiarray[34] = 127 - fmsettings[tfichannel-1][34]; // OP4 Total Level
+    tfiarray[4] = fmsettings[tfichannel-1][4];   // OP1 Total Level
+    tfiarray[14] = fmsettings[tfichannel-1][14]; // OP3 Total Level
+    tfiarray[24] = fmsettings[tfichannel-1][24]; // OP2 Total Level
+    tfiarray[34] = fmsettings[tfichannel-1][34]; // OP4 Total Level
     tfiarray[5] = fmsettings[tfichannel-1][5] / 32;    // OP1 Rate Scaling
     tfiarray[15] = fmsettings[tfichannel-1][15] / 32;  // OP3 Rate Scaling
     tfiarray[25] = fmsettings[tfichannel-1][25] / 32;  // OP2 Rate Scaling

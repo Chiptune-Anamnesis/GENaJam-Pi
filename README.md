@@ -1,6 +1,6 @@
-# GENajam-Pi v1.33
+# GENajam-Pi v1.34
 
-A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This is a modernized version of the original Arduino GENajam by JAMATAR, featuring enhanced file browsing, real-time MIDI display, and improved responsiveness. If stock is available you can find this device at [HobbyChop](https://hobbychop.etsy.com).
+A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This is a modernized version of the original Arduino GENajam by JAMATAR, featuring enhanced file browsing, real-time MIDI display, and improved responsiveness.
 
 ## Features
 
@@ -258,7 +258,7 @@ Buttons (Digital, with pullups):
 ## Getting Started
 
 ### Quick Installation (Recommended)
-1. **Download** the latest `genajam-pico-v1.33.uf2` file from releases
+1. **Download** the latest `genajam-pico-v1.34.uf2` file from releases
 2. **Hold the BOOTSEL button** on your Pico and plug it into USB
 3. **Drag and drop** the UF2 file onto the RPI-RP2 drive that appears
 4. **Setup complete!** - The Pico will automatically reboot and start GenaJam
@@ -343,5 +343,3 @@ Open source hardware and software project. Use and modify as needed for your mus
 ---
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
-
-

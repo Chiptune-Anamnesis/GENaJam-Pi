@@ -466,9 +466,7 @@ void resetVoicesAndNotes() {
         midi_send_cc(ch, 123, 0);  // All Notes Off
     }
 
-    // Initialize Genesis FM chip to default state
-    // Ensures consistent sound when rebooting GenaJam without rebooting Genesis
-    initializeFMChip();
+    // Reset voice states but preserve loaded TFI instruments
     for (int i = 0; i < 6; ++i) {
         polyon[i] = false;
         polynote[i] = 0;
