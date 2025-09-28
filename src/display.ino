@@ -45,20 +45,20 @@ void updateFileDisplay(void) {
         oled_print(75, 0, midi_buffer);
     }
     
-    uint16_t browsed_idx = (mode == 3) ? tfifilenumber[0] : tfifilenumber[tfichannel-1];
+    uint16_t file_idx = (mode == 3) ? tfifilenumber[0] : tfifilenumber[tfichannel-1];
 
-    bool is_user_file = (browsed_idx < user_file_count);
-    if (!is_user_file && current_count > 0) {
+    bool is_user_file = (file_idx < user_file_count);
+    if (!is_user_file && current_count > 0 && file_idx < n) {
         char folder_line[22];
-        snprintf(folder_line, 22, ">%s", file_folders[browsed_idx]);
+        snprintf(folder_line, 22, ">%s", file_folders[file_idx]);
         oled_print(0, 8, folder_line);
     } else {
         oled_print(0, 8, "                    ");
     }
 
-    if (current_count > 0) {
+    if (current_count > 0 && file_idx < n) {
         char filename_line[22];
-        snprintf(filename_line, 22, ">%s", filenames[browsed_idx]);
+        snprintf(filename_line, 22, ">%s", filenames[file_idx]);
         oled_print(0, 16, filename_line);
     } else {
         oled_print(0, 16, ">No files");

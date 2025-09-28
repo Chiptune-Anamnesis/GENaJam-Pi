@@ -128,7 +128,7 @@ void showModeMessage() {
   display.display();
   mutex_exit(&display_mutex);
   
-  // Small delay for non-visualizer modes
+  // Delay for non-visualizer modes
   if (mode != 5 && mode != 6) {
     delay(20);
   }
@@ -181,6 +181,21 @@ void togglePolyMode() {
   // Only reset voices when actually changing poly mode
   if (prev_poly_mode != poly_mode) {
     resetVoicesAndNotes();
+
+    // When switching from MONO to POLY, apply current TFI to all channels
+    if (poly_mode == 1 && prev_poly_mode == 0) {
+      uint16_t current_tfi = tfifilenumber[tfichannel-1];
+
+      // Set all channels to use the same TFI as the current mono channel
+      for (int i = 0; i < 6; i++) {
+        tfifilenumber[i] = current_tfi;
+      }
+
+      // Apply the TFI to all channels immediately
+      if (n > 0 && current_tfi < n) {
+        applyTFIToAllChannelsImmediate();
+      }
+    }
   }
 }
 

@@ -359,7 +359,7 @@ void tfiLoadImmediateOnChannel(uint8_t ch) {
 void applyTFIToAllChannelsImmediate() {
     for (uint8_t ch = 1; ch <= 6; ch++) {
         tfiLoadImmediateOnChannel(ch);
-        delay(5); // Small delay between channels to prevent UART overflow
+        delay(5); // Prevent UART overflow
         // Only add MIDI processing if we're past the initial setup
         if (booted == 1) {
             handle_midi_input();
@@ -471,10 +471,10 @@ void savenew(void) {
     tfiarray[13] = fmsettings[tfichannel-1][13] / 32;  // OP3 Detune
     tfiarray[23] = fmsettings[tfichannel-1][23] / 32;  // OP2 Detune
     tfiarray[33] = fmsettings[tfichannel-1][33] / 32;  // OP4 Detune
-    tfiarray[4] = fmsettings[tfichannel-1][4];   // OP1 Total Level
-    tfiarray[14] = fmsettings[tfichannel-1][14]; // OP3 Total Level
-    tfiarray[24] = fmsettings[tfichannel-1][24]; // OP2 Total Level
-    tfiarray[34] = fmsettings[tfichannel-1][34]; // OP4 Total Level
+    tfiarray[4] = 127 - fmsettings[tfichannel-1][4];   // OP1 Total Level (invert for standard TFI format)
+    tfiarray[14] = 127 - fmsettings[tfichannel-1][14]; // OP3 Total Level (invert for standard TFI format)
+    tfiarray[24] = 127 - fmsettings[tfichannel-1][24]; // OP2 Total Level (invert for standard TFI format)
+    tfiarray[34] = 127 - fmsettings[tfichannel-1][34]; // OP4 Total Level (invert for standard TFI format)
     tfiarray[5] = fmsettings[tfichannel-1][5] / 32;    // OP1 Rate Scaling
     tfiarray[15] = fmsettings[tfichannel-1][15] / 32;  // OP3 Rate Scaling
     tfiarray[25] = fmsettings[tfichannel-1][25] / 32;  // OP2 Rate Scaling
@@ -546,45 +546,45 @@ void saveoverwrite(void) {
     tfiarray[0] = fmsettings[tfichannel-1][0] / 16;    // Algorithm
     tfiarray[1] = fmsettings[tfichannel-1][1] / 16;    // Feedback
     tfiarray[2] = fmsettings[tfichannel-1][2] / 8;     // OP1 Multiplier
-    tfiarray[3] = fmsettings[tfichannel-1][3] / 32;    // OP1 Attack Rate
-    tfiarray[4] = fmsettings[tfichannel-1][4];         // OP1 Decay Rate
-    tfiarray[5] = fmsettings[tfichannel-1][5];         // OP1 Sustain Rate
-    tfiarray[6] = fmsettings[tfichannel-1][6];         // OP1 Release Rate
-    tfiarray[7] = fmsettings[tfichannel-1][7];         // OP1 Sustain Level
-    tfiarray[8] = fmsettings[tfichannel-1][8];         // OP1 Total Level
-    tfiarray[9] = fmsettings[tfichannel-1][9];         // OP1 Key Scaling
-    tfiarray[10] = fmsettings[tfichannel-1][10];       // OP1 Detune
-    tfiarray[11] = fmsettings[tfichannel-1][11];       // OP1 Amplitude Modulation
     tfiarray[12] = fmsettings[tfichannel-1][12] / 8;   // OP3 Multiplier
-    tfiarray[13] = fmsettings[tfichannel-1][13] / 32;  // OP3 Attack Rate
-    tfiarray[14] = fmsettings[tfichannel-1][14] / 16;  // OP3 Decay Rate
-    tfiarray[15] = fmsettings[tfichannel-1][15] / 16;  // OP3 Sustain Rate
-    tfiarray[16] = fmsettings[tfichannel-1][16];       // OP3 Release Rate
-    tfiarray[17] = fmsettings[tfichannel-1][17];       // OP3 Sustain Level
-    tfiarray[18] = fmsettings[tfichannel-1][18];       // OP3 Total Level
-    tfiarray[19] = fmsettings[tfichannel-1][19];       // OP3 Key Scaling
-    tfiarray[20] = fmsettings[tfichannel-1][20];       // OP3 Detune
-    tfiarray[21] = fmsettings[tfichannel-1][21];       // OP3 Amplitude Modulation
     tfiarray[22] = fmsettings[tfichannel-1][22] / 8;   // OP2 Multiplier
-    tfiarray[23] = fmsettings[tfichannel-1][23] / 32;  // OP2 Attack Rate
-    tfiarray[24] = fmsettings[tfichannel-1][24] / 16;  // OP2 Decay Rate
-    tfiarray[25] = fmsettings[tfichannel-1][25] / 16;  // OP2 Sustain Rate
-    tfiarray[26] = fmsettings[tfichannel-1][26];       // OP2 Release Rate
-    tfiarray[27] = fmsettings[tfichannel-1][27];       // OP2 Sustain Level
-    tfiarray[28] = fmsettings[tfichannel-1][28];       // OP2 Total Level
-    tfiarray[29] = fmsettings[tfichannel-1][29];       // OP2 Key Scaling
-    tfiarray[30] = fmsettings[tfichannel-1][30];       // OP2 Detune
-    tfiarray[31] = fmsettings[tfichannel-1][31];       // OP2 Amplitude Modulation
     tfiarray[32] = fmsettings[tfichannel-1][32] / 8;   // OP4 Multiplier
-    tfiarray[33] = fmsettings[tfichannel-1][33] / 32;  // OP4 Attack Rate
-    tfiarray[34] = fmsettings[tfichannel-1][34] / 16;  // OP4 Decay Rate
-    tfiarray[35] = fmsettings[tfichannel-1][35];       // OP4 Sustain Rate
-    tfiarray[36] = fmsettings[tfichannel-1][36];       // OP4 Release Rate
-    tfiarray[37] = fmsettings[tfichannel-1][37];       // OP4 Sustain Level
-    tfiarray[38] = fmsettings[tfichannel-1][38];       // OP4 Total Level
-    tfiarray[39] = fmsettings[tfichannel-1][39];       // OP4 Key Scaling
-    tfiarray[40] = fmsettings[tfichannel-1][40];       // OP4 Detune
-    tfiarray[41] = fmsettings[tfichannel-1][41];       // OP4 Amplitude Modulation
+    tfiarray[3] = fmsettings[tfichannel-1][3] / 32;    // OP1 Detune
+    tfiarray[13] = fmsettings[tfichannel-1][13] / 32;  // OP3 Detune
+    tfiarray[23] = fmsettings[tfichannel-1][23] / 32;  // OP2 Detune
+    tfiarray[33] = fmsettings[tfichannel-1][33] / 32;  // OP4 Detune
+    tfiarray[4] = 127 - fmsettings[tfichannel-1][4];   // OP1 Total Level (invert for standard TFI format)
+    tfiarray[14] = 127 - fmsettings[tfichannel-1][14]; // OP3 Total Level (invert for standard TFI format)
+    tfiarray[24] = 127 - fmsettings[tfichannel-1][24]; // OP2 Total Level (invert for standard TFI format)
+    tfiarray[34] = 127 - fmsettings[tfichannel-1][34]; // OP4 Total Level (invert for standard TFI format)
+    tfiarray[5] = fmsettings[tfichannel-1][5] / 32;    // OP1 Rate Scaling
+    tfiarray[15] = fmsettings[tfichannel-1][15] / 32;  // OP3 Rate Scaling
+    tfiarray[25] = fmsettings[tfichannel-1][25] / 32;  // OP2 Rate Scaling
+    tfiarray[35] = fmsettings[tfichannel-1][35] / 32;  // OP4 Rate Scaling
+    tfiarray[6] = fmsettings[tfichannel-1][6] / 4;     // OP1 Attack Rate
+    tfiarray[16] = fmsettings[tfichannel-1][16] / 4;   // OP3 Attack Rate
+    tfiarray[26] = fmsettings[tfichannel-1][26] / 4;   // OP2 Attack Rate
+    tfiarray[36] = fmsettings[tfichannel-1][36] / 4;   // OP4 Attack Rate
+    tfiarray[7] = fmsettings[tfichannel-1][7] / 4;     // OP1 1st Decay Rate
+    tfiarray[17] = fmsettings[tfichannel-1][17] / 4;   // OP3 1st Decay Rate
+    tfiarray[27] = fmsettings[tfichannel-1][27] / 4;   // OP2 1st Decay Rate
+    tfiarray[37] = fmsettings[tfichannel-1][37] / 4;   // OP4 1st Decay Rate
+    tfiarray[10] = (127 - fmsettings[tfichannel-1][10]) / 8; // OP1 2nd Total Level
+    tfiarray[20] = (127 - fmsettings[tfichannel-1][20]) / 8; // OP3 2nd Total Level
+    tfiarray[30] = (127 - fmsettings[tfichannel-1][30]) / 8; // OP2 2nd Total Level
+    tfiarray[40] = (127 - fmsettings[tfichannel-1][40]) / 8; // OP4 2nd Total Level
+    tfiarray[8] = fmsettings[tfichannel-1][8] / 8;     // OP1 2nd Decay Rate
+    tfiarray[18] = fmsettings[tfichannel-1][18] / 8;   // OP3 2nd Decay Rate
+    tfiarray[28] = fmsettings[tfichannel-1][28] / 8;   // OP2 2nd Decay Rate
+    tfiarray[38] = fmsettings[tfichannel-1][38] / 8;   // OP4 2nd Decay Rate
+    tfiarray[9] = fmsettings[tfichannel-1][9] / 8;     // OP1 Release Rate
+    tfiarray[19] = fmsettings[tfichannel-1][19] / 8;   // OP3 Release Rate
+    tfiarray[29] = fmsettings[tfichannel-1][29] / 8;   // OP2 Release Rate
+    tfiarray[39] = fmsettings[tfichannel-1][39] / 8;   // OP4 Release Rate
+    tfiarray[11] = fmsettings[tfichannel-1][11] / 8;   // OP1 SSG-EG
+    tfiarray[21] = fmsettings[tfichannel-1][21] / 8;   // OP3 SSG-EG
+    tfiarray[31] = fmsettings[tfichannel-1][31] / 8;   // OP2 SSG-EG
+    tfiarray[41] = fmsettings[tfichannel-1][41] / 8;   // OP4 SSG-EG
 
     for (int i = 0; i < 42; i++) dataFile.write((uint8_t)tfiarray[i]);
     dataFile.close();
@@ -910,7 +910,7 @@ void loadSelectedPreset(void) {
     oled_refresh();
     delay(2000);
     
-    // CRITICAL: Ensure TFI select screen reflects the loaded preset
+    // Ensure TFI select screen reflects the loaded preset
     if (mode == 7) {  // If we're in mono preset manager
         // Set the currently selected channel to channel 1 for consistency
         tfichannel = 1;

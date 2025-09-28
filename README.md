@@ -1,12 +1,12 @@
-# GENajam-Pi v1.35
+# GENajam-Pi v1.36
 
-A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This is a modernized version of the original Arduino GENajam by JAMATAR, featuring enhanced file browsing, real-time MIDI display, and improved responsiveness.
+A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This modernized version features enhanced file browsing, real-time MIDI visualization, and improved responsiveness.
 
-<h1 align="center">
-    <img width="45%" title="GENaJam-Pi" src="images/GENaJam-Pi.png">
-</h1>
+## Overview
 
-## Features
+GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for 6-channel FM synthesis via the GENMDM module. It provides intuitive control over TFI (Texas Instruments Format) instruments with real-time parameter editing and advanced file management.
+
+## Key Features
 
 ### Core Functionality
 - **6-channel FM synthesis control** via GENMDM module
@@ -16,100 +16,41 @@ A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scal
 - **OLED display** (128x32) for visual feedback
 - **MIDI panic button** for emergency note-off
 
-### Enhancements
-- **Recursive directory scanning** - finds TFI files in subdirectories
-- **Accelerated navigation** - Hold left/right for dynamic (2 modes) fast file scrolling.
-- **Bar graph Viz for MONO Mode** - Bar Graph shows incoming MIDI CH. 1-11.
-- **Bar graph Viz for POLY Mode** - Bar Graph shows incoming notes for 6 FM channels.
-- **Dual-Core** - Core 0 handles MIDI, etc. Core 1 handles the Visualizer.
-- **Savestate of TFI instruments** - Save and load tfi configuration to all channels.
-- **USB MIDI and TRS MIDI** - Both USB (MIDI IN) and TRS TYPE A 3.5 (IN and OUT).
-- **Settings mode available on booted device** - Choose Poly Midi Ch, NTSC/PAL.
-- **Stuckless mode switching** - Switching between poly and mono sends a note off command for all notes to avoid stuck notes.
-- **True mono mode** - One note at a time per channel with last-note priority.
-- **Velocity Settings** - Hard / Medium / Soft / Original
-- **User/Library File Organization** - User files stored in `/tfi/user/`, library files in `/tfi/`
-- **Browse Mode Toggle** - Switch between ALL, USER, LIBRARY, or PREVIEW files with OPT2
-- **Folder-Aware Browsing** - Display current folder name during library file browsing
-- **Alphabetical Folder Sorting** - Library files sorted by folder name, then filename
-- **Faster Startup** - Reduced delays for quicker boot to visualizer mode
-
-### TFI Preview Mode
-A special browsing mode that combines automatic loading with manual sound preview:
-
-**Auto-Loading:**
-- TFI files automatically load when browsing with LEFT/RIGHT arrows
-- No need to press OPT1 to load - happens instantly
-- Shows "Loading TFI..." message during auto-load
-
-**Manual Preview:**
-- Press and hold OPT1 to play a preview note (Middle C)
-- Note plays as long as OPT1 is held down
-- Uses the currently browsed TFI instrument
-- Full velocity (127) for clear audio preview
-
-**Usage:**
-- Access via OPT2 button: ALL → USER → LIBRARY → **PREVIEW** → ALL
-- Display shows "PRVW" mode and "OPT1:Play OPT2:Exit"
-- Ideal for quickly auditioning many instruments without manual loading
-
-## Hardware Requirements
-
-### Core Components
-- Raspberry Pi Pico (RP2040)
-- 128x32 OLED display (SSD1306, I2C)
-- MicroSD card module (SPI)
-- TBD
-
-### Pin Configuration
-```
-OLED (I2C):
-- SDA: Pin 8
-- SCL: Pin 9
-
-SD Card (SPI):
-- CS:   Pin 5
-- MISO: Pin 4
-- SCK:  Pin 6
-- MOSI: Pin 7
-
-MIDI:
-- TX: Pin 0
-- RX: Pin 1
-
-Potentiometers (Analog):
-- Multiplexer: Pin 28
-- Multiplexer: C0-C3 to Pots
-- Multiplexer S0-S3: Pin 10-13
-
-Buttons (Digital, with pullups):
-- Preset/Edit: Pin 20
-- Left:        Pin 14
-- Right:       Pin 15
-- CH Up:       Pin 16
-- CH Down:     Pin 17
-- Mono/Poly:   Pin 18
-- Delete:      Pin 19
-- Panic:       Pin 21
-```
+### Enhanced Features
+- **Dual-Core Processing** - Core 0 handles MIDI, Core 1 handles visualization
+- **Advanced File Organization** - Automatic user/library file separation
+- **Real-time MIDI Visualization** - Multiple visualization modes with bar graphs, animations
+- **TFI Preview Mode** - Auto-load files while browsing with manual sound preview
+- **Accelerated Navigation** - Hold buttons for fast file scrolling
+- **USB + TRS MIDI** - Both USB MIDI IN and TRS 3.5mm MIDI IN/OUT
+- **Savestate System** - Save and load complete 6-channel configurations
+- **Settings Persistence** - MIDI channel, region (NTSC/PAL), velocity curves
+- **Smart Voice Management** - True mono mode with last-note priority
+- **Stuckless Mode Switching** - Automatic note-off when changing modes
 
 ## Operation Modes
 
+### Mode Structure
+- **MONO/POLY Toggle**: Press POLY button to switch between monophonic and polyphonic operation
+- **Mode Cycling**: Press PRESET button to cycle through available modes
+
 ### MONO Mode Cycle
-**PRESET Button cycles through:** VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...
+**PRESET Button:** VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...
 
 #### Visualizer Mode
-- **4 Sub-modes** (UP/DOWN to cycle): Bar Graph, Asteroids, Starfighter, Neural Net
-- Real-time MIDI visualization for channels 1-11
-- Continuous animation during music playback
+- **4 Visualization Types** (UP/DOWN to cycle):
+  - Bar Graph - Classic frequency bars
+  - Asteroids - Space debris field animation
+  - Starfighter - Space flight simulation
+  - Neural Net - Hexagonal network visualization
+- Real-time MIDI activity display for channels 1-11
 
 #### Presets Mode
-- Browse and load TFI files per channel (1-6) with folder-aware display
-- **UP/DOWN**: Select FM channel
-- **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
+- Browse and load TFI files per channel (1-6)
+- **UP/DOWN**: Select FM channel (1-6)
+- **LEFT/RIGHT**: Browse TFI files
 - **OPT1**: Load selected TFI to current channel
-- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY/PREVIEW)
-  - **PREVIEW mode**: Auto-loads TFI files when browsing + OPT1 to play preview notes
+- **OPT2**: Toggle between ALL and PREVIEW modes
 
 #### FM Edit Mode
 - Real-time FM parameter editing for current channel
@@ -121,29 +62,29 @@ Buttons (Digital, with pullups):
 #### Bank Manager Mode
 - Save/load complete 6-channel TFI configurations
 - **LEFT/RIGHT**: Browse saved preset banks
-- **OPT2**: Save current configuration as new preset
 - **OPT1**: Load selected preset bank
+- **OPT2**: Save current configuration as new preset
 - **DELETE**: Delete selected preset
 
 #### Settings Mode
 - **LEFT/RIGHT**: Navigate settings (MIDI Channel, Region, Velocity Curve)
-- **UP/DOWN** or **Pots**: Adjust values
+- **UP/DOWN** or **Potentiometers**: Adjust values
 - **OPT2**: Save changes to EEPROM and SD card
 - **PRESET**: Exit without saving
 
 ### POLY Mode Cycle
-**PRESET Button cycles through:** VIZ → PRESETS → FM EDIT → VIZ...
-*(BANK MGR and SETTINGS disabled in POLY mode)*
+**PRESET Button:** VIZ → PRESETS → FM EDIT → VIZ...
+*(Bank Manager and Settings disabled in POLY mode)*
 
 #### Visualizer Mode
-- Same 4 sub-modes as MONO, shows polyphonic activity
+- Same 4 visualization types as MONO mode
+- Shows polyphonic activity across all 6 channels
 
 #### Presets Mode
-- Browse TFI files for all 6 channels simultaneously with folder-aware display
-- **LEFT/RIGHT**: Browse TFI files (shows folder name for library files)
+- Browse TFI files for all 6 channels simultaneously
+- **LEFT/RIGHT**: Browse TFI files
 - **OPT1**: Load selected TFI to all 6 channels
-- **OPT2**: Toggle browse mode (ALL/USER/LIBRARY/PREVIEW)
-  - **PREVIEW mode**: Auto-loads TFI files when browsing + OPT1 to play preview notes on channel 1
+- **OPT2**: Toggle between ALL and PREVIEW modes
 - **UP**: Save prompt for current TFI
 - **DELETE**: Delete TFI file
 
@@ -151,216 +92,139 @@ Buttons (Digital, with pullups):
 - Real-time editing affects all 6 channels simultaneously
 - **LEFT/RIGHT**: Navigate parameter screens
 - **4 Potentiometers**: Adjust parameters for all channels
-- **OPT2**: Save prompt (UP=overwrite, DOWN=save new, PRESET=cancel) 
+- **OPT2**: Save prompt (UP=overwrite, DOWN=save new, PRESET=cancel)
 
-## Mode Switching:
+## Browse Modes
 
+### ALL Mode
+- Shows both library and user files combined
+- User files appear first in the list
+- Complete file browsing with folder navigation
 
-  ├─ PRESET Button: Cycle through modes within current MONO/POLY setting
-  
-  └─ POLY Button: Toggle between MONO ↔ POLY modes
-  
-
-  VISUALIZER SUB-MODES (UP/DOWN in VIZ mode):
-  
-  ├─ Bar Graph     (Classic frequency bars)
-  
-  ├─ Asteroids     (Space debris field)
-  
-  ├─ Starfighter   (Space flight simulation)
-  
-  └─ Neural Net    (Hexagonal network visualization)
-  
-
-  PRESETS MODE:
-  
-  ├─ LEFT/RIGHT: Browse TFI files
-  
-  ├─ UP/DOWN: Select channel (MONO) or all channels (POLY)
-  
-  ├─ OPT1: Load selected TFI
-  └─ OPT1: Toggle browse mode (ALL/USER/LIBRARY)
-  
-
-  FM EDIT MODE:
-  
-  ├─ LEFT/RIGHT: Navigate FM parameter screens
-  
-  ├─ UP/DOWN: Select channel
-  
-  ├─ Potentiometers: Adjust FM parameters in real-time
-  
-  └─ OPT2: Save prompt (UP=overwrite, DOWN=save new, PRESET=cancel)
-  
-
-  BANK MGR MODE (MONO only):
-  
-  ├─ LEFT/RIGHT: Browse saved presets
-  
-  ├─ OPT2: Save current settings as preset
-  
-  ├─ OPT1: Load selected preset
-  
-  └─ DELETE: Delete selected preset
-  
-
-  SETTINGS MODE (MONO only):
-  
-  ├─ LEFT/RIGHT: Navigate setting categories
-  
-  ├─ UP/DOWN: Adjust values
-  
-  └─ OPT2: Confirm and save changes
-  
-
-
-## MIDI Features
-
-### Polyphony System
-- **6-voice polyphony** with intelligent voice stealing
-- **Sustain pedal support** (CC#64)
-- **Modulation wheel control** (CC#1) - controls LFO on/off
-- **Pitch bend** - affects all voices in poly mode
-- **Velocity curve** - musical response across dynamic range
-
-### Voice Management
-- Protects lowest note from voice stealing
-- Random stereo positioning in poly mode
-- Proper note-off handling with sustain
-- MIDI panic clears all stuck notes
+### PREVIEW Mode
+- **Auto-Loading**: TFI files automatically load when browsing with LEFT/RIGHT
+- **Manual Preview**: Press and hold OPT1 to play a preview note (Middle C)
+- **Usage**: Toggle with OPT2 button: ALL → PREVIEW → ALL
+- **Display**: Shows "PRVW" mode and "OPT1:Play OPT2:Exit"
 
 ## File Management
 
-### TFI File Support
-- **Separated file organization** - Library files in `/tfi/`, user files in `/tfi/user/`
-- **Browse mode toggle** - Switch between ALL, USER, LIBRARY, or PREVIEW files with OPT2
-- **TFI Preview Mode** - Auto-load TFI files when browsing + manual preview notes with OPT1
-- **Folder-aware browsing** - Shows current folder name during library file navigation
-- **Alphabetical organization** - Library files sorted by folder, then filename
-- **Smart file limits** - 150 user files, 400 library files (550 total)
-- **Priority file indexing** - User files appear first in ALL mode
-- **Recursive directory scanning** - finds files in any folder depth
-- **Fast file browsing** with acceleration (hold buttons for turbo speed)
-- **Save new patches** - automatically numbered in `/tfi/user/` (newpatch001.tfi, etc.)
-- **Overwrite existing** - update files in place
-- **Delete files** - with confirmation prompt
+### TFI File Organization
+- **User Files**: Stored in `/tfi/user/` - your saved instruments
+- **Library Files**: Stored in `/tfi/` and subdirectories - pre-made instruments
+- **Combined Browsing**: ALL mode shows both types (user files first)
+- **Smart Limits**: 150 user files max, 400 library files max
+
+### File Operations
+- **Save New**: Automatically numbered in `/tfi/user/` (newpatch001.tfi, etc.)
+- **Overwrite**: Update existing files in place
+- **Delete**: Remove files with confirmation prompt
+- **Preview**: Test instruments before loading
 
 ### SD Card Structure
 ```
 /
-├── tfi/                    ← All TFI files go here
+├── tfi/                    ← Library TFI files and folders
 │   ├── bass/
-│   │   ├── bass001.tfi
-│   │   └── bass002.tfi
 │   ├── lead/
-│   │   ├── lead001.tfi
-│   │   └── lead002.tfi
 │   ├── drums/
-│   │   ├── kick.tfi
-│   │   └── snare.tfi
-│   └── newpatch001.tfi     ← New saves go here
-├── presets/                ← Bank preset files
-│   ├── 001.mdm_pre
-│   └── 002.mdm_pre
-└── settings/               ← Settings backup
-    └── settings.ini
+│   └── user/               ← User-saved TFI files
+├── presets/                ← Bank preset files (.mdm_pre)
+└── settings/               ← Settings backup (.ini)
 ```
 
-## System Limits
+## MIDI Features
 
-### File Capacity
-- **User TFI files**: 150 maximum (stored in `/tfi/user/`)
-- **Library TFI files**: 400 maximum (stored in `/tfi/` and subdirectories)
-- **Total TFI files**: 550 maximum
-- **Preset banks**: No specific limit (stored in `/presets/`)
+### Voice Management
+- **6-voice polyphony** with intelligent voice stealing
+- **Sustain pedal support** (CC#64)
+- **Modulation wheel control** (CC#1) - Binary LFO on/off (threshold at value 5)
+- **Pitch bend** - Affects all voices in poly mode, individual voices in mono
+- **Velocity curves** - Hard/Medium/Soft/Original response
 
-### File Path Limits
-- **File paths**: 96 characters maximum (including folder structure)
-- **Display names**: 48 characters maximum (filename without `.tfi`)
-- **Folder names**: 16 characters maximum for display
+### MIDI I/O
+- **USB MIDI**: Input only
+- **TRS MIDI**: 3.5mm Type A - Input and Output
+- **MIDI Panic**: Emergency all-notes-off functionality
 
-*Files exceeding these limits will be automatically skipped during scanning.*
+## Hardware Requirements
 
-## Getting Started
+### Essential Components
+- Raspberry Pi Pico (RP2040)
+- 128x32 OLED display (SSD1306, I2C)
+- MicroSD card module (SPI)
+- 4 Potentiometers via analog multiplexer
+- 8 Digital buttons with pullup resistors
 
-### Quick Installation (Recommended)
-1. **Download** the latest `genajam-pico-v1.35.uf2` file from releases
-2. **Hold the BOOTSEL button** on your Pico and plug it into USB
-3. **Drag and drop** the UF2 file onto the RPI-RP2 drive that appears
-4. **Setup complete!** - The Pico will automatically reboot and start GenaJam
+### Controls
+- **PRESET/Edit Button**: Mode cycling
+- **MONO/POLY Button**: Mode switching
+- **LEFT/RIGHT Buttons**: Navigation
+- **UP/DOWN Buttons**: Channel/option selection
+- **OPT1/OPT2 Buttons**: Special functions
+- **DELETE Button**: File deletion
+- **PANIC Button**: Emergency stop
 
-### Development Setup (Arduino IDE)
-1. Install RP2040 board package
-2. Install required libraries:
-   - Adafruit GFX Library
-   - Adafruit SSD1306
-   - MIDI Library
-   - Wire (built-in)
-   - SPI (built-in)
-   - SD (built-in)
-   - EEPROM (built-in)
+## Installation
 
-### Initial Configuration
-1. **Boot menu**: Hold PRESET on startup to configure MIDI channel and region (NTSC/PAL)
-2. **Load TFI files** onto SD card in `/tfi/` folder (will be created automatically)
-3. **Connect GENMDM** via MIDI OUT
-4. **Power on** and start making music!
+### Quick Setup (Recommended)
+1. Download the latest `genajam-pico-v1.36.uf2` file from releases
+2. Hold the BOOTSEL button on your Pico and connect to USB
+3. Drag and drop the UF2 file onto the RPI-RP2 drive
+4. The Pico will automatically reboot and start GenaJam
 
-## Controls
+### Configuration
+1. **Boot Setup**: Hold PRESET on startup to configure MIDI channel and region
+2. **SD Card**: Load TFI files onto SD card (folders will be created automatically)
+3. **GENMDM**: Connect via MIDI OUT
+4. **Ready**: Power on and start making music!
 
-### Navigation
-- **PRESET**: Toggle between Preset/Edit modes
-- **MONO/POLY**: Toggle between Mono/Poly modes
-- **LEFT/RIGHT**: Browse files or parameter screens
-- **UP/DOWN**: Select channel (mono) or save options (poly)
-- **DELETE**: Delete files (poly mode only)
-- **PANIC**: Emergency all-notes-off
-- **OPT1**: Toggle browse mode (ALL/USER/LIBRARY)
-- **OPT2**: Future Feature Placeholder
+## FM Parameter Editing
 
-### Editing
-- **4 Potentiometers thru Multiplexer**: Control selected parameters
-- Real-time visual feedback on OLED
-- Parameter values update immediately
-- Changes affect current channel (mono) or all channels (poly)
-
-## Parameter Screens
-
-1. **Algorithm, Feedback, Pan** - Core FM structure
-2. **OP Volume** - Individual operator levels
-3. **Frequency Multiple** - Harmonic ratios
-4. **Detune** - Fine frequency adjustments
+### 13 Parameter Screens
+1. **Algorithm, Feedback, Pan** - Core FM structure and stereo positioning
+2. **OP Volume** - Individual operator volume levels (Total Level)
+3. **Frequency Multiple** - Harmonic ratios for each operator
+4. **Detune** - Fine frequency adjustments per operator
 5. **Rate Scaling** - Envelope scaling with pitch
 6. **Attack** - Envelope attack rates
 7. **Decay 1** - Initial decay rates
-8. **Sustain** - Sustain levels
+8. **Sustain** - Sustain levels (2nd Total Level)
 9. **Decay 2** - Secondary decay rates
 10. **Release** - Release rates
-11. **SSG-EG** - Special envelope modes
-12. **Amp Modulation** - Amplitude modulation on/off
-13. **LFO/FM/AM** - Global modulation controls
+11. **SSG-EG** - Special envelope generator modes
+12. **Amp Modulation** - Amplitude modulation on/off per operator
+13. **LFO/FM/AM** - Global modulation controls and levels
 
-## Technical Notes
+## Technical Specifications
 
-### Performance Optimizations
-- **Delayed loading** prevents MIDI lag during file browsing
-- **MIDI processing** during parameter updates maintains responsiveness
-- **Efficient file scanning** with progress display
-- **Button acceleration** for fast navigation
-- **Dual core** offloaded tasks to the extra core
+### Performance
+- **Dual-core processing** for smooth operation
+- **Real-time MIDI processing** with minimal latency
+- **Efficient file handling** supports hundreds of TFI files
+- **Smart button acceleration** for fast navigation
 
-### Memory Management
-- **EEPROM storage** for MIDI channel and region settings
-- **Efficient file indexing** supports 999 TFI files
-- **Scans through top level folders** basic TFI file organization allowed
-- **Real-time parameter tracking** for all 6 channels
+### File Limits
+- **User TFI Files**: 150 maximum
+- **Library TFI Files**: 400 maximum
+- **File Paths**: 96 characters maximum
+- **Display Names**: 48 characters maximum
+
+## Version History
+
+### v1.36 Changes
+- Simplified browse modes to ALL and PREVIEW only
+- Fixed TFI save/load consistency issues
+- Improved pitch bend handling
+- Enhanced mode switching with automatic TFI application
+- Removed USER and LIBRARY browse modes for simplicity
 
 ## Credits
 
 - **Original GENajam**: [JAMATAR](https://github.com/jamatarmusic/GENajam) (2021)
 - **GENMDM Module**: Little-scale
 - **Velocity Curve**: impbox
-- **Base Project**: Catskull Electronics
+- **Pico Port**: Crunchypotato (2025)
 
 ## License
 
@@ -369,5 +233,3 @@ Open source hardware and software project. Use and modify as needed for your mus
 ---
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
-
-

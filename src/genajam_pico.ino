@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.35";
+const char* GENAJAM_VERSION = "v1.36";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -119,22 +119,25 @@ bool button_is_held = false;
 uint64_t last_button_release_time = 0;
 const uint16_t initial_debounce = 300;   // Increased debounce for better stability
 
-enum TfiBrowseMode { TFI_ALL, TFI_USER, TFI_LIBRARY };
+enum TfiBrowseMode { TFI_ALL };
 TfiBrowseMode current_tfi_mode = TFI_ALL;
 bool preview_mode = false;
+bool sd_card_available = false;
 const uint8_t PREVIEW_NOTE = 60; // Middle C for preview
 unsigned long preview_note_start = 0;
 bool preview_note_playing = false;
 uint8_t preview_channel = 0;
 bool opt1_preview_playing = false;
 uint16_t user_file_count = 0;
+uint16_t remembered_tfi_selection[6] = {0}; // Remember original selection when switching modes
+bool remembered_was_library_file[6] = {false}; // Track if remembered selection was a library file
 
 char file_folders[nMaxTotal][16];
 bool folder_display_enabled = true;
 const uint16_t fast_debounce = 80;       // Fast debounce after acceleration
 const uint16_t turbo_debounce = 25;      // Turbo speed for long holds
-const uint16_t hold_threshold_1 = 3000;  // 3 seconds to start acceleration (much longer delay)
-const uint16_t hold_threshold_2 = 6000;  // 6 seconds to go turbo (much longer delay)
+const uint16_t hold_threshold_1 = 3000;  // 3 seconds to start acceleration
+const uint16_t hold_threshold_2 = 6000;  // 6 seconds to go turbo
 // Current TFI actually loaded on each channel
 uint16_t loaded_tfi[6] = { 0, 0, 0, 0, 0, 0 };
 
@@ -202,7 +205,7 @@ bool polyon[6] = { 0, 0, 0, 0, 0, 0 };
 bool sustainon[6] = { 0, 0, 0, 0, 0, 0 };
 bool noteheld[6] = { 0, 0, 0, 0, 0, 0 };
 bool sustain = 0;
-uint8_t lowestnote = 0;  // Add this back - needed for voice stealing
+uint8_t lowestnote = 0;
 
 // FM parameter screen navigation
 uint8_t fmscreen = 1;
@@ -385,8 +388,17 @@ void setup() {
   EEPROM.begin(512);
 
   // Try to load settings from SD card backup first
-  if (!loadSettingsFromSD()) {
-    // Fall back to EEPROM if SD card backup doesn't exist
+  if (sd_card_available && !loadSettingsFromSD()) {
+    // Fall back to EEPROM if SD card backup doesn't exist or load failed
+    region = flash_read_setting(0);
+    midichannel = flash_read_setting(1);
+    velocity_curve = flash_read_setting(2);
+
+    if (region == 255) region = 0;
+    if (midichannel == 255) midichannel = 1;
+    if (velocity_curve == 255) velocity_curve = 4; // Default to ImpBox curve (original)
+  } else if (!sd_card_available) {
+    // SD card not available, use EEPROM directly
     region = flash_read_setting(0);
     midichannel = flash_read_setting(1);
     velocity_curve = flash_read_setting(2);
@@ -482,7 +494,7 @@ void setup() {
   showModeMessage();
 }
 void loop() {
-  // CRITICAL: Process MIDI first and most frequently for lowest latency
+  // Process MIDI first for lowest latency
   handle_midi_input();
 
   // Static timers for non-critical updates
@@ -653,7 +665,7 @@ void loop() {
               }
             } else {
               // Normal load behavior in non-preview modes
-              // Show loading message
+              // Display loading status
               mutex_enter_blocking(&display_mutex);
               display.clearDisplay();
               display.setCursor(0, 0);
@@ -668,7 +680,7 @@ void loop() {
             break;
 
           case btnOPT2:
-            // Toggle between ALL/USER/LIBRARY browse modes
+            // Toggle between ALL and PREVIEW browse modes
             toggleTfiBrowseMode();
             updateFileDisplay();
             break;
@@ -785,27 +797,56 @@ void loop() {
       case 1: // POLY PRESET
         switch (lcd_key) {
           case btnRIGHT:
-            // Navigate right in current browse mode (affects all channels)
-            tfichannel = 1;
-            navigateTfiRight(1);
-            for (int i = 1; i <= 5; i++) {
-              tfifilenumber[i] = tfifilenumber[0];
+            {
+              // Navigate right in current browse mode (affects all channels)
+              tfichannel = 1;
+              // First update channel 1's selection
+              uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
+              uint16_t current_count = getCurrentTfiCount();
+              if (current_count > 0) {
+                // Only ALL mode now - cycle through all files
+                tfifilenumber[safe_channel]++;
+                if (tfifilenumber[safe_channel] >= n) {
+                  tfifilenumber[safe_channel] = 0;
+                }
+                // Copy to all channels before preview
+                for (int i = 1; i <= 5; i++) {
+                  tfifilenumber[i] = tfifilenumber[0];
+                }
+                // Now call preview with all channels having the same TFI
+                previewCurrentTfi(1);
+              }
+              updateFileDisplay();
             }
-            updateFileDisplay();
             break;
 
           case btnLEFT:
-            // Navigate left in current browse mode (affects all channels)
-            tfichannel = 1;
-            navigateTfiLeft(1);
-            for (int i = 1; i <= 5; i++) {
-              tfifilenumber[i] = tfifilenumber[0];
+            {
+              // Navigate left in current browse mode (affects all channels)
+              tfichannel = 1;
+              // First update channel 1's selection
+              uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
+              uint16_t current_count = getCurrentTfiCount();
+              if (current_count > 0) {
+                // Only ALL mode now - cycle through all files
+                if (tfifilenumber[safe_channel] == 0) {
+                  tfifilenumber[safe_channel] = n - 1;
+                } else {
+                  tfifilenumber[safe_channel]--;
+                }
+                // Copy to all channels before preview
+                for (int i = 1; i <= 5; i++) {
+                  tfifilenumber[i] = tfifilenumber[0];
+                }
+                // Now call preview with all channels having the same TFI
+                previewCurrentTfi(1);
+              }
+              updateFileDisplay();
             }
-            updateFileDisplay();
             break;
 
           case btnOPT2:
-            // Toggle between ALL/USER/LIBRARY browse modes
+            // Toggle between ALL and PREVIEW browse modes
             toggleTfiBrowseMode();
             updateFileDisplay();
             break;
@@ -968,7 +1009,7 @@ void setup_hardware(void) {
   pinMode(MUX_S2_PIN, OUTPUT);
   pinMode(MUX_S3_PIN, OUTPUT);
 
-  // Let hardware settle after power-on
+  // Hardware settling time
   delay(200);
 
   // Read initial pot values with proper multiplexer handling
@@ -976,7 +1017,7 @@ void setup_hardware(void) {
 
   for (int i = 0; i < 4; i++) {
     selectMuxChannel(i);
-    delay(20);  // Longer delay for initial readings
+    delay(20);  // Initial reading delay
 
     // Take multiple readings and average them for stable initial values
     int total = 0;
@@ -1008,7 +1049,7 @@ static inline void primePotBaselines() {
 }
 
 void setup_sd(void) {
-  // Initialize SPI pins for SD card (like your working test code)
+  // Initialize SPI pins for SD card
   SPI.setSCK(SD_SCK_PIN);
   SPI.setTX(SD_MOSI_PIN);
   SPI.setRX(SD_MISO_PIN);
@@ -1031,8 +1072,11 @@ void setup_sd(void) {
     display.print("CANNOT FIND SD");
     display.display();
     delay(5000);
+    sd_card_available = false;
     return;
   }
+
+  sd_card_available = true;
 
   display.clearDisplay();
   display.setCursor(0, 0);
@@ -1058,7 +1102,7 @@ uint8_t read_buttons(void) {
   // Add MIDI processing at start of button reading
   handle_midi_input();
 
-  // Read current button states
+  // Check button state
   bool left_pressed = !digitalRead(BTN_LEFT_PIN);
   bool right_pressed = !digitalRead(BTN_RIGHT_PIN);
   bool up_pressed = !digitalRead(BTN_CH_UP_PIN);
@@ -1091,7 +1135,7 @@ uint8_t read_buttons(void) {
   else if (opt1_pressed) current_button = btnOPT1;
   else if (opt2_pressed) current_button = btnOPT2;
 
-  // Enhanced debouncing: require button state to be stable
+  // Debouncing: require stable button state
   if (current_button == last_raw_button) {
     stable_button_count++;
   } else {
@@ -1099,15 +1143,15 @@ uint8_t read_buttons(void) {
     last_raw_button = current_button;
   }
 
-  // SPECIAL CASE: LEFT/RIGHT buttons get relaxed debouncing for dynamic scrolling
+  // LEFT/RIGHT buttons use optimized debouncing for file browsing
   if (current_button == btnLEFT || current_button == btnRIGHT) {
-    // For LEFT/RIGHT: only require 1 stable read (much faster response)
+    // LEFT/RIGHT: require 1 stable read for faster response
     if (stable_button_count < 1) {
       return btnNONE;
     }
-    // Skip the anti-double-click protection for LEFT/RIGHT to preserve speed
+    // Skip anti-double-click protection for LEFT/RIGHT
   } else {
-    // For all OTHER buttons: strict debouncing to prevent double-clicks
+    // Other buttons: strict debouncing to prevent double-clicks
     if (stable_button_count < 3) {
       return btnNONE;  // Button state not stable yet
     }
@@ -1304,26 +1348,25 @@ void core1_entry() {
       // Skip frame if mutex unavailable
     }
 
-    // Small delay to prevent overwhelming the system
+    // Prevent system overload
     sleep_us(100);
   }
 }
 
 // TFI browse mode management functions
 void toggleTfiBrowseMode(void) {
-  if (!preview_mode) {
-    // Cycle through browse modes first
-    switch (current_tfi_mode) {
-      case TFI_ALL:
-        current_tfi_mode = TFI_USER;
-        break;
-      case TFI_USER:
-        current_tfi_mode = TFI_LIBRARY;
-        break;
-      case TFI_LIBRARY:
-        preview_mode = true;
-        break;
+  // Save current selection before mode change
+  bool was_all_files_mode = (current_tfi_mode == TFI_ALL || preview_mode);
+  if (was_all_files_mode) {
+    for (int i = 0; i < 6; i++) {
+      remembered_tfi_selection[i] = tfifilenumber[i];
+      remembered_was_library_file[i] = (tfifilenumber[i] >= user_file_count);
     }
+  }
+
+  if (!preview_mode) {
+    // Switch to preview mode
+    preview_mode = true;
   } else {
     // Exit preview mode and go back to ALL
     preview_mode = false;
@@ -1333,85 +1376,77 @@ void toggleTfiBrowseMode(void) {
 }
 
 void updateTfiSelection(void) {
-  // Try to preserve currently loaded TFI when switching modes
-  for (int i = 0; i < 6; i++) {
-    uint16_t max_files = getCurrentTfiCount();
-    if (max_files == 0) {
+  uint16_t max_files = getCurrentTfiCount();
+  if (max_files == 0) {
+    for (int i = 0; i < 6; i++) {
       tfifilenumber[i] = 0;
-    } else {
-      // First try to keep the currently loaded TFI
-      uint16_t currently_loaded = loaded_tfi[i];
+    }
+    return;
+  }
 
-      // Check if the currently loaded TFI is valid in the new mode
-      bool is_valid_in_mode = false;
-      switch (current_tfi_mode) {
-        case TFI_USER:
-          is_valid_in_mode = (currently_loaded < user_file_count);
-          break;
-        case TFI_LIBRARY:
-          is_valid_in_mode = (currently_loaded >= user_file_count && currently_loaded < n);
-          break;
-        case TFI_ALL:
-          is_valid_in_mode = (currently_loaded < n);
-          break;
-      }
+  static TfiBrowseMode last_mode = TFI_ALL;
+  static bool was_preview_mode = false;
 
-      if (is_valid_in_mode) {
-        // Keep the currently loaded TFI
-        tfifilenumber[i] = currently_loaded;
-      } else {
-        // Fall back to safe defaults if currently loaded TFI not valid in this mode
-        switch (current_tfi_mode) {
-          case TFI_USER:
-            tfifilenumber[i] = 0;  // First user file
-            break;
-          case TFI_LIBRARY:
-            tfifilenumber[i] = user_file_count;  // First library file
-            break;
-          case TFI_ALL:
-            tfifilenumber[i] = currently_loaded < n ? currently_loaded : 0;  // Keep if possible, else first file
-            break;
-        }
+  // Check if we're in an "all files" mode (ALL or PREVIEW)
+  bool is_all_files_mode = (current_tfi_mode == TFI_ALL || preview_mode);
+  bool was_all_files_mode = (last_mode == TFI_ALL || was_preview_mode);
+
+  // If switching TO an "all files" mode, restore remembered selections
+  if (is_all_files_mode && !was_all_files_mode) {
+    for (int i = 0; i < 6; i++) {
+      tfifilenumber[i] = remembered_tfi_selection[i];
+      // Clamp to valid range just in case
+      if (tfifilenumber[i] >= n) {
+        tfifilenumber[i] = n > 0 ? n - 1 : 0;
       }
     }
   }
+
+  // Now handle the current mode's constraints
+  for (int i = 0; i < 6; i++) {
+    uint16_t current_selection = tfifilenumber[i];
+
+    // ALL mode - just clamp if needed
+    if (current_selection >= n) {
+      tfifilenumber[i] = n > 0 ? n - 1 : 0;
+    }
+
+    // PREVIEW mode uses same constraint as ALL mode
+    if (preview_mode && current_selection >= n) {
+      tfifilenumber[i] = n > 0 ? n - 1 : 0;
+    }
+  }
+
+  // In poly mode, ensure all channels have the same selection
+  if (poly_mode == 1) {
+    for (int i = 1; i < 6; i++) {
+      tfifilenumber[i] = tfifilenumber[0];
+    }
+  }
+
+  last_mode = current_tfi_mode;
+  was_preview_mode = preview_mode;
 }
 
 const char* getTfiBrowseModeString(void) {
   if (preview_mode) {
     return "PRVW";
   }
-  switch (current_tfi_mode) {
-    case TFI_USER: return "USER";
-    case TFI_LIBRARY: return "LIB";
-    case TFI_ALL: return "ALL";
-    default: return "ALL";
-  }
+  // Only ALL mode now
+  return "ALL";
 }
 
 uint16_t getCurrentTfiCount(void) {
-  switch (current_tfi_mode) {
-    case TFI_USER: return user_file_count;
-    case TFI_LIBRARY: return (n > user_file_count) ? (n - user_file_count) : 0;
-    case TFI_ALL: return n;
-    default: return n;
-  }
+  // Only ALL mode now - return total file count
+  return n;
 }
 
 uint16_t getCurrentTfiIndex(uint8_t channel) {
   uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
   uint16_t raw_index = tfifilenumber[safe_channel];
 
-  switch (current_tfi_mode) {
-    case TFI_USER:
-      return raw_index;  // User files are at indices 0 to user_file_count-1
-    case TFI_LIBRARY:
-      return raw_index - user_file_count;  // Adjust for display (0-based library count)
-    case TFI_ALL:
-      return raw_index;  // No adjustment needed
-    default:
-      return raw_index;
-  }
+  // Only ALL mode now - no adjustment needed
+  return raw_index;
 }
 
 void navigateTfiRight(uint8_t channel) {
@@ -1419,25 +1454,10 @@ void navigateTfiRight(uint8_t channel) {
   uint16_t current_count = getCurrentTfiCount();
   if (current_count == 0) return;
 
-  switch (current_tfi_mode) {
-    case TFI_USER:
-      tfifilenumber[safe_channel]++;
-      if (tfifilenumber[safe_channel] >= user_file_count) {
-        tfifilenumber[safe_channel] = 0;
-      }
-      break;
-    case TFI_LIBRARY:
-      tfifilenumber[safe_channel]++;
-      if (tfifilenumber[safe_channel] >= n) {
-        tfifilenumber[safe_channel] = user_file_count;
-      }
-      break;
-    case TFI_ALL:
-      tfifilenumber[safe_channel]++;
-      if (tfifilenumber[safe_channel] >= n) {
-        tfifilenumber[safe_channel] = 0;
-      }
-      break;
+  // Only ALL mode now - cycle through all files
+  tfifilenumber[safe_channel]++;
+  if (tfifilenumber[safe_channel] >= n) {
+    tfifilenumber[safe_channel] = 0;
   }
 
   // Preview the TFI if in preview mode
@@ -1449,28 +1469,11 @@ void navigateTfiLeft(uint8_t channel) {
   uint16_t current_count = getCurrentTfiCount();
   if (current_count == 0) return;
 
-  switch (current_tfi_mode) {
-    case TFI_USER:
-      if (tfifilenumber[safe_channel] == 0) {
-        tfifilenumber[safe_channel] = user_file_count - 1;
-      } else {
-        tfifilenumber[safe_channel]--;
-      }
-      break;
-    case TFI_LIBRARY:
-      if (tfifilenumber[safe_channel] <= user_file_count) {
-        tfifilenumber[safe_channel] = n - 1;
-      } else {
-        tfifilenumber[safe_channel]--;
-      }
-      break;
-    case TFI_ALL:
-      if (tfifilenumber[safe_channel] == 0) {
-        tfifilenumber[safe_channel] = n - 1;
-      } else {
-        tfifilenumber[safe_channel]--;
-      }
-      break;
+  // Only ALL mode now - cycle through all files
+  if (tfifilenumber[safe_channel] == 0) {
+    tfifilenumber[safe_channel] = n - 1;
+  } else {
+    tfifilenumber[safe_channel]--;
   }
 
   // Preview the TFI if in preview mode
@@ -1486,7 +1489,7 @@ void previewCurrentTfi(uint8_t channel) {
 
   if (is_accelerating) return; // Don't preview during fast browsing
 
-  // Show loading message
+  // Display loading status
   mutex_enter_blocking(&display_mutex);
   display.clearDisplay();
   display.setCursor(0, 0);
@@ -1495,7 +1498,15 @@ void previewCurrentTfi(uint8_t channel) {
   mutex_exit(&display_mutex);
 
   // Load the currently browsed TFI immediately
-  tfiLoadImmediateOnChannel(channel);
+  if (poly_mode == 1) {
+    // In poly mode, load TFI on all channels
+    for (int i = 1; i <= 6; i++) {
+      tfiLoadImmediateOnChannel(i);
+    }
+  } else {
+    // In mono mode, load TFI on current channel
+    tfiLoadImmediateOnChannel(channel);
+  }
 }
 
 void extractFolderName(const char* fullPath, char* folderName) {

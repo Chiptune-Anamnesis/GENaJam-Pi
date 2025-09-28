@@ -9,7 +9,7 @@ void setup_midi(void) {
     // Initialize Serial1 manually at MIDI baud rate BEFORE calling MIDI.begin()
     // This prevents the MIDI library from hanging during UART initialization
     Serial1.begin(MIDI_BAUD_RATE);
-    delay(100);  // Give UART time to stabilize
+    delay(100);  // UART stabilization
     
     // Initialize MIDI library
     MIDI.begin(MIDI_CHANNEL_OMNI);
@@ -42,11 +42,7 @@ void setup_midi(void) {
     MIDI.setHandleAfterTouchPoly([](byte channel, byte note, byte pressure) {
         if (channel < 1 || channel > 6) MIDI.sendAfterTouch(note, pressure, channel);
     });
-//if (!usb_midi.begin()) {
- //   Serial.println("Failed to initialize USB MIDI");
-//} else {
- //   Serial.println("USB MIDI initialized successfully");
-//}
+// USB MIDI initialization handled in main setup
 }
 
 void midi_send_cc(uint8_t channel, uint8_t cc, uint8_t value) {
@@ -185,7 +181,7 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
 
     // Only update displays when actually in those modes
     if (mode == 1 || mode == 3) {
-      //  updateMidiDisplay(channel, note);
+        // MIDI display updates handled elsewhere
     }
 
     // Only update visualizer when in visualizer modes
@@ -306,7 +302,7 @@ void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity) {
         clearVelocityViz(channel - 1);
     }
     
-    // Rest of existing note-off logic unchanged...
+    // Handle polyphonic and monophonic note-off logic
     if (mode == 3 || mode == 4 || mode == 6) {
         if (channel == midichannel) {
             
@@ -378,7 +374,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
         }
     }
     
-    // ADD THIS: Modulation wheel handling (same as original)
+    // Modulation wheel handling
     if (cc == 1) { // Modulation wheel
         if (value <= 5) {
             midi_send_cc(1, 74, 0); // mod wheel below 5 turns off LFO
@@ -410,18 +406,16 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
 
 void handle_pitch_bend(uint8_t channel, int16_t bend) {
     if (mode == 3 || mode == 4) { // if we're in poly mode
-        // Send pitch bend to all 6 FM channels (like the original)
-        for (int i = 1; i <= 6; i++) {
-            midi_send_pitch_bend(i, bend);
-            handle_midi_input(); // Keep MIDI responsive during loops
+        if (channel == midichannel) {  // only respond to the configured poly MIDI channel
+            // Send pitch bend to all 6 FM channels (match v1.10 implementation)
+            for (int i = 5; i >= 0; i--) {
+                MIDI.sendPitchBend(bend, i+1);
+                MIDI.read();
+            }
         }
+        // If wrong channel, ignore pitch bend
     } else { // mono mode
-        if (channel >= 1 && channel <= 6) {
-            midi_send_pitch_bend(channel, bend);
-        } else {
-            // Pass other channels straight through
-            MIDI.sendPitchBend(bend, channel);
-        }
+        MIDI.sendPitchBend(bend, channel); // just midi thru
     }
 }
 
@@ -458,11 +452,11 @@ void midiNoteToString(uint8_t note, char* noteStr) {
 }
 
 void resetVoicesAndNotes() {
-    // First reset all MIDI controllers and notes
+    // First reset specific MIDI controllers and notes (avoid CC#121 which disables pitch bend)
     for (int ch = 1; ch <= 16; ++ch) {
         midi_send_cc(ch, 64, 0);   // Sustain Off
         midi_send_cc(ch, 120, 0);  // All Sound Off
-        midi_send_cc(ch, 121, 0);  // Reset All Controllers
+        // midi_send_cc(ch, 121, 0);  // Reset All Controllers - REMOVED: This disables pitch bend!
         midi_send_cc(ch, 123, 0);  // All Notes Off
     }
 
@@ -483,67 +477,14 @@ void resetVoicesAndNotes() {
 }
 
 void initializeFMChip() {
-    // Initialize Genesis FM chip to default state
-    // Prevents leftover register values from affecting sound after GenaJam reboot
+    // Minimal FM chip reset - only clear essential registers to prevent leftover values
+    // Avoids sending too many MIDI messages that might interfere with pitch bend
 
-    // Global FM settings
+    // Just send All Sound Off and All Notes Off to clear any stuck notes/sounds
     for (int ch = 1; ch <= 6; ch++) {
-        // Reset channel algorithms (CC 70-75) to basic Algorithm 0
-        midi_send_cc(ch, 69 + ch, 0);
-
-        // Reset feedback (CC 76-81) to 0
-        midi_send_cc(ch, 75 + ch, 0);
-
-        // Reset stereo/LFO (CC 82) to stereo both
-        midi_send_cc(ch, 82, 64);
+        midi_send_cc(ch, 120, 0);  // All Sound Off
+        midi_send_cc(ch, 123, 0);  // All Notes Off
     }
 
-    // Reset all operator parameters to defaults for each channel
-    for (int ch = 1; ch <= 6; ch++) {
-        // Operator 1 (CC 14-19)
-        midi_send_cc(ch, 14, 63);  // Attack Rate default
-        midi_send_cc(ch, 15, 0);   // Decay Rate default
-        midi_send_cc(ch, 16, 0);   // Sustain Rate default
-        midi_send_cc(ch, 17, 7);   // Release Rate default
-        midi_send_cc(ch, 18, 15);  // Sustain Level default
-        midi_send_cc(ch, 19, 127); // Total Level (volume) default
-
-        // Operator 2 (CC 20-25)
-        midi_send_cc(ch, 20, 63);
-        midi_send_cc(ch, 21, 0);
-        midi_send_cc(ch, 22, 0);
-        midi_send_cc(ch, 23, 7);
-        midi_send_cc(ch, 24, 15);
-        midi_send_cc(ch, 25, 127);
-
-        // Operator 3 (CC 26-31)
-        midi_send_cc(ch, 26, 63);
-        midi_send_cc(ch, 27, 0);
-        midi_send_cc(ch, 28, 0);
-        midi_send_cc(ch, 29, 7);
-        midi_send_cc(ch, 30, 15);
-        midi_send_cc(ch, 31, 127);
-
-        // Operator 4 (CC 32-37)
-        midi_send_cc(ch, 32, 63);
-        midi_send_cc(ch, 33, 0);
-        midi_send_cc(ch, 34, 0);
-        midi_send_cc(ch, 35, 7);
-        midi_send_cc(ch, 36, 15);
-        midi_send_cc(ch, 37, 0);    // OP4 Total Level (carrier)
-
-        // Reset frequency multipliers (CC 38-41) to 1x
-        midi_send_cc(ch, 38, 8);   // Op1 Mult
-        midi_send_cc(ch, 39, 8);   // Op2 Mult
-        midi_send_cc(ch, 40, 8);   // Op3 Mult
-        midi_send_cc(ch, 41, 8);   // Op4 Mult
-
-        // Reset detune (CC 42-45) to 0
-        midi_send_cc(ch, 42, 64);  // Op1 Detune (64 = center/0)
-        midi_send_cc(ch, 43, 64);  // Op2 Detune
-        midi_send_cc(ch, 44, 64);  // Op3 Detune
-        midi_send_cc(ch, 45, 64);  // Op4 Detune
-    }
-
-    delay(50); // Allow time for all MIDI messages to be processed
+    delay(10); // Minimal delay
 }

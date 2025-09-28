@@ -103,7 +103,7 @@ void bootprompt(void) {
         break;
     }
 
-    // Small delay to prevent excessive polling
+    // Prevent excessive polling
     delay(50);
   }
 
@@ -124,7 +124,12 @@ void saveSettingsToSD(void) {
     SD.mkdir("/settings");
   }
 
-  // Open settings file for writing
+  // Remove existing file to ensure clean overwrite
+  if (SD.exists("/settings/settings.ini")) {
+    SD.remove("/settings/settings.ini");
+  }
+
+  // Open settings file for writing (now creates a fresh file)
   File settingsFile = SD.open("/settings/settings.ini", FILE_WRITE);
   if (!settingsFile) {
     return; // Failed to create file
@@ -144,17 +149,35 @@ void saveSettingsToSD(void) {
 
   settingsFile.flush(); // Ensure data is written to SD card
   settingsFile.close();
-  delay(50); // Give SD card time to complete write
+  delay(50); // SD card write completion
 }
 
 bool loadSettingsFromSD(void) {
   // Check if settings file exists
   if (!SD.exists("/settings/settings.ini")) {
+    // Settings file doesn't exist
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("No settings.ini");
+    display.display();
+    delay(1000);
     return false; // File doesn't exist
   }
 
+  // Settings file found
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Loading SD settings");
+  display.display();
+  delay(500);
+
   File settingsFile = SD.open("/settings/settings.ini", FILE_READ);
   if (!settingsFile) {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("Can't open settings");
+    display.display();
+    delay(1000);
     return false; // Failed to open file
   }
 
@@ -188,6 +211,19 @@ bool loadSettingsFromSD(void) {
   }
 
   settingsFile.close();
+
+  // Settings loaded successfully
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("SD settings loaded");
+  display.setCursor(0, 16);
+  display.print("CH:");
+  display.print(midichannel);
+  display.print(" REG:");
+  display.print(region);
+  display.display();
+  delay(1500);
+
   return true; // Successfully loaded
 }
 
