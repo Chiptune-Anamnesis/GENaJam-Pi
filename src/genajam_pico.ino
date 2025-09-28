@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.36";
+const char* GENAJAM_VERSION = "v1.37";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information

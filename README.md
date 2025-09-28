@@ -1,4 +1,4 @@
-# GENajam-Pi v1.36
+# GENajam-Pi v1.37
 
 A Raspberry Pi Pico (RP2040) port of the GENajam MIDI controller for Little-scale's GENMDM module. This modernized version features enhanced file browsing, real-time MIDI visualization, and improved responsiveness.
 
@@ -168,7 +168,7 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.36.uf2` file from releases
+1. Download the latest `genajam-pico-v1.37.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -211,6 +211,11 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 - **Display Names**: 48 characters maximum
 
 ## Version History
+
+### v1.37 Changes
+- Cleaned up code comments throughout codebase for improved readability
+- Removed suggestion-style, questioning, and temporary debug comments
+- Made comment language more professional and concise
 
 ### v1.36 Changes
 - Simplified browse modes to ALL and PREVIEW only
