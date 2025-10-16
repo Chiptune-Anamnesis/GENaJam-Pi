@@ -85,16 +85,6 @@ void updateFileDisplay(void) {
 
 void channelselect(void) {
     if (n == 0) return;  // No files available
-
-    // When switching MONO channels, immediately initialize the newly selected channel
-    // with the currently selected TFI so it has a valid sound/params.
-    // Also send All Notes Off / Reset All Controllers for a clean slate.
-    if (mode == 1 || mode == 2) { // MONO | Preset or MONO | Edit
-        midi_send_cc(tfichannel, 123, 0); // All Notes Off (per-channel)
-        midi_send_cc(tfichannel, 121, 0); // Reset All Controllers (if supported)
-        tfiLoadImmediateOnChannel(tfichannel); // Apply the current TFI to this channel now
-    }
-
     updateFileDisplay();
 }
 
