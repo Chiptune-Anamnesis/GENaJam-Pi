@@ -212,17 +212,8 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 
 ## Version History
 
-### v1.37 Changes
-- Cleaned up code comments throughout codebase for improved readability
-- Removed suggestion-style, questioning, and temporary debug comments
-- Made comment language more professional and concise
-
-### v1.36 Changes
-- Simplified browse modes to ALL and PREVIEW only
-- Fixed TFI save/load consistency issues
-- Improved pitch bend handling
-- Enhanced mode switching with automatic TFI application
-- Removed USER and LIBRARY browse modes for simplicity
+### v1.38 Changes
+- Fixed TFI Edit changes being wiped out by changing to TFI select mode.
 
 ## Credits
 
@@ -239,3 +230,4 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
