@@ -176,10 +176,8 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 4. The Pico will automatically reboot and start GenaJam
 
 ### Configuration
-1. **Boot Setup**: Hold PRESET on startup to configure MIDI channel and region
-2. **SD Card**: Load TFI files onto SD card (folders will be created automatically)
-3. **GENMDM**: Connect via MIDI OUT
-4. **Ready**: Power on and start making music!
+1. **SD Card**: Load TFI files onto SD card (folders will be created automatically)
+2. **GENMDM**: Connect via MIDI OUT
 
 ## FM Parameter Editing
 
@@ -232,6 +230,7 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
 
 
 
