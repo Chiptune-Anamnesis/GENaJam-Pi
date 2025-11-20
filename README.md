@@ -170,7 +170,7 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.37.uf2` file from releases
+1. Download the latest `genajam-pico-v1.38.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -230,6 +230,7 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
 
 
 
