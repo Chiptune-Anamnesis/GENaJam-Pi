@@ -224,7 +224,7 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
     
     bool repeatnote = false;
     
-    if (mode == 3 || mode == 4 || mode == 6) { // if we're in poly mode
+    if (poly_mode == 1) { // if we're in poly mode
         if (channel == midichannel) {  // and is set to the global midi channel
             
             // Handle repeat notes - retrigger if same note is already playing
@@ -323,7 +323,7 @@ void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity) {
     }
     
     // Handle polyphonic and monophonic note-off logic
-    if (mode == 3 || mode == 4 || mode == 6) {
+    if (poly_mode == 1) {
         if (channel == midichannel) {
             
             for (int i = 0; i < 6 && i < sizeof(polynote); i++) {
@@ -372,7 +372,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
         if (value == 0) { // sustain pedal released
             sustain = false;
 
-            if (mode == 3 || mode == 4) { // poly mode
+            if (poly_mode == 1) { // poly mode
                 for (int i = 5; i >= 0; i--) { // Scan for sustained channels
                     handle_midi_input();
                     if (!noteheld[i] && sustainon[i]) { // if key not held but sustained
@@ -410,14 +410,14 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
     // External CC to fmsettings sync (ADSR parameters)
     // This syncs external MIDI CC to internal state before forwarding
     if (external_cc_sync) {
-        if (mode == 3 || mode == 4) { // poly mode
+        if ((mode == 3 || mode == 4) && poly_multi_timbral == 0) { // standard poly mode
             if (channel == midichannel) {
-                // Sync to all 6 channels in poly mode
+                // Sync to all 6 channels in standard poly mode
                 for (int i = 1; i <= 6; i++) {
                     syncExternalCCtoFMSettings(i, cc, value);
                 }
             }
-        } else { // mono mode
+        } else { // mono mode OR poly-multi mode - per-channel CC handling
             if (channel >= 1 && channel <= 6) {
                 syncExternalCCtoFMSettings(channel, cc, value);
             }
@@ -425,9 +425,9 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
     }
 
     // Pass CC messages to appropriate channels
-    if (mode == 3 || mode == 4) { // poly mode
+    if ((mode == 3 || mode == 4) && poly_multi_timbral == 0) { // standard poly mode
         if (channel == midichannel) {
-            // Send CC to all active FM channels in poly mode
+            // Send CC to all active FM channels in standard poly mode
             for (int i = 1; i <= 6; i++) {
                 midi_send_cc(i, cc, value);
             }
@@ -435,7 +435,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
             // Pass other channels straight through
             MIDI.sendControlChange(cc, value, channel);
         }
-    } else { // mono mode
+    } else { // mono mode OR poly-multi mode - per-channel CC handling
         if (channel >= 1 && channel <= 6) {
             midi_send_cc(channel, cc, value);
         } else {
@@ -446,7 +446,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
 }
 
 void handle_pitch_bend(uint8_t channel, int16_t bend) {
-    if (mode == 3 || mode == 4) { // if we're in poly mode
+    if (poly_mode == 1) { // if we're in poly mode
         if (channel == midichannel) {  // only respond to the configured poly MIDI channel
             // Send pitch bend to all 6 FM channels (match v1.10 implementation)
             for (int i = 5; i >= 0; i--) {

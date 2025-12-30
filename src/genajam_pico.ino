@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.40";
+const char* GENAJAM_VERSION = "v1.50";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -1084,12 +1084,53 @@ void loop() {
         operatorparamdisplay();
         break;
 
-      case 3: // POLY - Should never actually be 3 in poly mode
-        // Fallback for invalid edit_mode in poly
-        // Reset to preset mode
-        edit_mode = 0;
-        updateGlobalMode();
-        showModeMessage();
+      case 3: // POLY-MULTI BANK_MGR (only accessible when poly_multi_timbral == 1)
+        if (poly_multi_timbral == 1) {
+          // Bank manager enabled in poly-multi mode
+          switch (lcd_key) {
+            case btnRIGHT:
+              presetfilenumber++;
+              if (presetfilenumber >= preset_n) {
+                presetfilenumber = 0;
+              }
+              presetManagerDisplay();
+              break;
+
+            case btnLEFT:
+              if (presetfilenumber == 0) {
+                presetfilenumber = preset_n > 0 ? preset_n - 1 : 0;
+              } else {
+                presetfilenumber--;
+              }
+              presetManagerDisplay();
+              break;
+
+            case btnOPT2:
+              saveCurrentPreset();
+              break;
+
+            case btnOPT1:
+              loadSelectedPreset();
+              break;
+
+            case btnSELECT:
+              cycleEditMode();
+              break;
+
+            case btnPOLY:
+              togglePolyMode();
+              break;
+
+            case btnBLANK:
+              deleteSelectedPreset();
+              break;
+          }
+        } else {
+          // Fallback for standard poly mode - reset to viz mode
+          edit_mode = 0;
+          updateGlobalMode();
+          showModeMessage();
+        }
         break;
     }
   }

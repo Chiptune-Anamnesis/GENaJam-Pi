@@ -1,4 +1,4 @@
-# GENajam-Pi v1.41
+# GENajam-Pi v1.50
 
 Get one here! https://hobbychop.com
 
@@ -80,8 +80,8 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 - **PRESET**: Exit without saving
 
 ### POLY Mode Cycle
-**PRESET Button:** VIZ → PRESETS → FM EDIT → VIZ...
-*(Bank Manager and Settings disabled in POLY mode)*
+**PRESET Button:** VIZ → PRESETS → FM EDIT → SETTINGS → VIZ...
+*(Bank Manager disabled in POLY mode, Settings accessible)*
 
 #### Visualizer Mode
 - Same 4 visualization types as MONO mode
@@ -272,7 +272,7 @@ These CCs are forwarded to GENMDM but don't update internal display state (globa
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.41.uf2` file from releases
+1. Download the latest `genajam-pico-v1.50.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -335,6 +335,12 @@ Navigate with LEFT/RIGHT, adjust with UP/DOWN, save with BTN2.
 
 ## Version History
 
+### v1.50 Changes
+- Enabled Bank Manager in Poly Multi-Timbral mode - load/save preset banks while using poly-multi
+- POLY-MT mode cycle now includes Bank Manager: VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS
+- Fixed poly-multi external CC sync - CCs now apply per-channel (like mono) instead of all 6 channels
+- Fixed voice allocation in Bank Manager - playing notes in poly-multi Bank Manager now uses correct polyphonic voice allocation
+
 ### v1.40 Changes
 - Added Poly Multi-Timbral mode (POLY-MT) - assign different TFI instruments to each of the 6 voice channels while maintaining polyphonic voice allocation
 - New settings option (5/6): POLY-MT toggle (OFF by default, ON enables per-channel TFI/editing in POLY mode)
@@ -342,6 +348,10 @@ Navigate with LEFT/RIGHT, adjust with UP/DOWN, save with BTN2.
 - POLY FM EDIT mode with POLY-MT enabled: knob changes only affect the currently selected channel
 - Display shows channel indicator (C1-C6) in POLY modes when POLY-MT is enabled
 - Settings now persist poly_multi_timbral to EEPROM and SD card
+- Settings menu now accessible in POLY mode (was previously MONO-only)
+- Fixed visualization not rendering after exiting Settings menu
+- Fixed envelope screen MIDI lag when adjusting ADSR with pots
+- Improved MIDI responsiveness during settings operations
 
 ### v1.39 Changes
 - Added external MIDI CC sync for ALL FM parameters (Algorithm, Feedback, TL, Mult, Detune, RS, ADSR, SSG-EG, Amp Mod)
@@ -369,4 +379,3 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
-

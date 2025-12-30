@@ -60,11 +60,17 @@ void cycleEditMode() {
     edit_mode++;
     if (edit_mode > 4) edit_mode = 0;
   } else { // POLY
-    // POLY ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> SETTINGS(4) -> VIZ(0)
-    // Bank MGR (3) is disabled in POLY, but Settings is accessible
     edit_mode++;
-    if (edit_mode == 3) edit_mode = 4;  // Skip bank mgr, go to settings
-    if (edit_mode > 4) edit_mode = 0;
+    if (poly_multi_timbral == 1) {
+      // POLY-MULTI ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> BANK_MGR(3) -> SETTINGS(4) -> VIZ(0)
+      // Bank MGR enabled in poly-multi mode for loading different TFI per channel
+      if (edit_mode > 4) edit_mode = 0;
+    } else {
+      // STANDARD POLY ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> SETTINGS(4) -> VIZ(0)
+      // Bank MGR (3) is disabled in standard POLY
+      if (edit_mode == 3) edit_mode = 4;  // Skip bank mgr, go to settings
+      if (edit_mode > 4) edit_mode = 0;
+    }
   }
   
   // Update the global mode variable
@@ -111,8 +117,12 @@ void showModeMessage() {
     case 6:  // POLY VIZ
       display.print("POLY | Visualizer");
       break;
-    case 7:  // MONO BANK MGR
-      display.print("MONO | Bank Mgr");
+    case 7:  // BANK MGR (MONO or POLY-MULTI)
+      if (poly_mode == 1) {
+        display.print("POLY | Bank Mgr");
+      } else {
+        display.print("MONO | Bank Mgr");
+      }
       break;
     case 9:  // SETTINGS
       display.print("SETTINGS");
@@ -172,9 +182,10 @@ void showVizSubModeMessage() {
 void togglePolyMode() {
   prev_poly_mode = poly_mode;
   poly_mode = !poly_mode;
-  
-   // If switching to poly mode and was in preset manager, go to preset mode
-  if (poly_mode == 1 && edit_mode == 3) {
+
+  // If switching to standard poly mode (not poly-multi) and was in bank manager, go to viz mode
+  // Bank manager is only available in MONO and POLY-MULTI modes
+  if (poly_mode == 1 && poly_multi_timbral == 0 && edit_mode == 3) {
     edit_mode = 0;
   }
   
@@ -218,7 +229,10 @@ void updateGlobalMode() {
       case 0: mode = 6; break;  // POLY VIZ
       case 1: mode = 3; break;  // POLY PRESET
       case 2: mode = 4; break;  // POLY EDIT
-      case 3: mode = 6; break;  // Fallback to VIZ (bank mgr disabled)
+      case 3:
+        // Bank MGR: enabled in poly-multi, fallback to VIZ in standard poly
+        mode = (poly_multi_timbral == 1) ? 7 : 6;
+        break;
       case 4: mode = 9; break;  // SETTINGS (now accessible in POLY)
     }
   }
