@@ -44,11 +44,12 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 **PRESET Button:** VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...
 
 #### Visualizer Mode
-- **4 Visualization Types** (UP/DOWN to cycle):
+- **Visualization Types** (UP/DOWN to cycle):
   - Bar Graph - Classic frequency bars
   - Asteroids - Space debris field animation
   - Starfighter - Space flight simulation
   - Neural Net - Hexagonal network visualization
+  - Envelope ADSR Overlay
 - Real-time MIDI activity display for channels 1-11
 
 #### Presets Mode
@@ -379,3 +380,4 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
