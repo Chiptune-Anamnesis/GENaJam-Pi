@@ -1,4 +1,4 @@
-# GENajam-Pi v1.40
+# GENajam-Pi v1.41
 
 Get one here! https://hobbychop.com
 
@@ -272,7 +272,7 @@ These CCs are forwarded to GENMDM but don't update internal display state (globa
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.40.uf2` file from releases
+1. Download the latest `genajam-pico-v1.41.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -369,3 +369,4 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
