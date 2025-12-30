@@ -1,5 +1,20 @@
 extern uint8_t viz_sub_mode;  // 0=bar graph, 1=asteroids
 extern bool system_ready;    // MIDI blocking flag during boot/setup
+extern uint8_t external_cc_sync;  // External CC to fmsettings sync setting
+extern uint8_t selected_operator;  // Selected operator for envelope viz
+extern uint8_t fmsettings[6][50];  // FM settings array
+extern uint8_t fmscreen;  // Current FM edit screen
+extern uint8_t tfichannel;  // Current TFI channel
+extern uint8_t edit_mode;  // 0=VIZ, 1=PRESET, 2=EDIT, 3=BANK_MGR, 4=SETTINGS
+
+// CC sync display optimization
+extern volatile bool cc_display_dirty;
+extern volatile unsigned long last_cc_display_time;
+extern const unsigned long CC_DISPLAY_MIN_INTERVAL;
+
+// Forward declarations
+void syncExternalCCtoFMSettings(uint8_t channel, uint8_t cc, uint8_t value);
+void envelopeVizDisplay(void);
 
 void setup_midi(void) {
     // Set UART pins first
@@ -349,7 +364,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
     if (cc == 64) { // Sustain pedal
         if (value == 0) { // sustain pedal released
             sustain = false;
-            
+
             if (mode == 3 || mode == 4) { // poly mode
                 for (int i = 5; i >= 0; i--) { // Scan for sustained channels
                     handle_midi_input();
@@ -373,7 +388,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
             sustain = true;
         }
     }
-    
+
     // Modulation wheel handling
     if (cc == 1) { // Modulation wheel
         if (value <= 5) {
@@ -382,7 +397,24 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
             midi_send_cc(1, 74, 70); // mod wheel above 5 turns on LFO
         }
     }
-    
+
+    // External CC to fmsettings sync (ADSR parameters)
+    // This syncs external MIDI CC to internal state before forwarding
+    if (external_cc_sync) {
+        if (mode == 3 || mode == 4) { // poly mode
+            if (channel == midichannel) {
+                // Sync to all 6 channels in poly mode
+                for (int i = 1; i <= 6; i++) {
+                    syncExternalCCtoFMSettings(i, cc, value);
+                }
+            }
+        } else { // mono mode
+            if (channel >= 1 && channel <= 6) {
+                syncExternalCCtoFMSettings(channel, cc, value);
+            }
+        }
+    }
+
     // Pass CC messages to appropriate channels
     if (mode == 3 || mode == 4) { // poly mode
         if (channel == midichannel) {
@@ -487,4 +519,111 @@ void initializeFMChip() {
     }
 
     delay(10); // Minimal delay
+}
+
+// Sync external MIDI CC to fmsettings array for all FM parameters
+// This keeps internal state in sync when external controllers modify FM parameters
+// NOTE: Values are stored RAW (0-127) to match how knobs store them in fmccsend()
+void syncExternalCCtoFMSettings(uint8_t channel, uint8_t cc, uint8_t value) {
+    if (channel < 1 || channel > 6) return;
+    int ch = channel - 1;  // 0-indexed
+
+    bool synced = false;
+    uint8_t affected_operator = 255;  // Track which operator was affected (for envelope viz)
+
+    switch (cc) {
+        // Algorithm (CC 14) - Screen 1, index 0
+        case 14: fmsettings[ch][0] = value; synced = true; break;
+
+        // Feedback (CC 15) - Screen 1, index 1
+        case 15: fmsettings[ch][1] = value; synced = true; break;
+
+        // Total Level (CC 16-19: OP1, OP3, OP2, OP4) - Screen 2
+        // Indices: OP1=4, OP3=14, OP2=24, OP4=34
+        case 16: fmsettings[ch][4] = value; synced = true; break;   // OP1
+        case 17: fmsettings[ch][14] = value; synced = true; break;  // OP3
+        case 18: fmsettings[ch][24] = value; synced = true; break;  // OP2
+        case 19: fmsettings[ch][34] = value; synced = true; break;  // OP4
+
+        // Multiplier (CC 20-23: OP1, OP3, OP2, OP4) - Screen 3
+        // Indices: OP1=2, OP3=12, OP2=22, OP4=32
+        case 20: fmsettings[ch][2] = value; synced = true; break;   // OP1
+        case 21: fmsettings[ch][12] = value; synced = true; break;  // OP3
+        case 22: fmsettings[ch][22] = value; synced = true; break;  // OP2
+        case 23: fmsettings[ch][32] = value; synced = true; break;  // OP4
+
+        // Detune (CC 24-27: OP1, OP3, OP2, OP4) - Screen 4
+        // Indices: OP1=3, OP3=13, OP2=23, OP4=33
+        case 24: fmsettings[ch][3] = value; synced = true; break;   // OP1
+        case 25: fmsettings[ch][13] = value; synced = true; break;  // OP3
+        case 26: fmsettings[ch][23] = value; synced = true; break;  // OP2
+        case 27: fmsettings[ch][33] = value; synced = true; break;  // OP4
+
+        // Rate Scaling (CC 39-42: OP1, OP3, OP2, OP4) - Screen 5
+        // Indices: OP1=5, OP3=15, OP2=25, OP4=35
+        case 39: fmsettings[ch][5] = value; synced = true; break;   // OP1
+        case 40: fmsettings[ch][15] = value; synced = true; break;  // OP3
+        case 41: fmsettings[ch][25] = value; synced = true; break;  // OP2
+        case 42: fmsettings[ch][35] = value; synced = true; break;  // OP4
+
+        // Attack Rate (CC 43-46: OP1, OP3, OP2, OP4) - Screen 6/7
+        case 43: fmsettings[ch][6] = value; synced = true; affected_operator = 0; break;   // OP1
+        case 44: fmsettings[ch][16] = value; synced = true; affected_operator = 2; break;  // OP3
+        case 45: fmsettings[ch][26] = value; synced = true; affected_operator = 1; break;  // OP2
+        case 46: fmsettings[ch][36] = value; synced = true; affected_operator = 3; break;  // OP4
+
+        // Decay 1 Rate (CC 47-50) - Screen 8
+        case 47: fmsettings[ch][7] = value; synced = true; affected_operator = 0; break;
+        case 48: fmsettings[ch][17] = value; synced = true; affected_operator = 2; break;
+        case 49: fmsettings[ch][27] = value; synced = true; affected_operator = 1; break;
+        case 50: fmsettings[ch][37] = value; synced = true; affected_operator = 3; break;
+
+        // Decay 2 Rate (CC 51-54) - Screen 10
+        case 51: fmsettings[ch][8] = value; synced = true; affected_operator = 0; break;
+        case 52: fmsettings[ch][18] = value; synced = true; affected_operator = 2; break;
+        case 53: fmsettings[ch][28] = value; synced = true; affected_operator = 1; break;
+        case 54: fmsettings[ch][38] = value; synced = true; affected_operator = 3; break;
+
+        // Sustain Level (CC 55-58) - Screen 9 - stored inverted
+        case 55: fmsettings[ch][10] = 127 - value; synced = true; affected_operator = 0; break;
+        case 56: fmsettings[ch][20] = 127 - value; synced = true; affected_operator = 2; break;
+        case 57: fmsettings[ch][30] = 127 - value; synced = true; affected_operator = 1; break;
+        case 58: fmsettings[ch][40] = 127 - value; synced = true; affected_operator = 3; break;
+
+        // Release Rate (CC 59-62) - Screen 11
+        case 59: fmsettings[ch][9] = value; synced = true; affected_operator = 0; break;
+        case 60: fmsettings[ch][19] = value; synced = true; affected_operator = 2; break;
+        case 61: fmsettings[ch][29] = value; synced = true; affected_operator = 1; break;
+        case 62: fmsettings[ch][39] = value; synced = true; affected_operator = 3; break;
+
+        // Amp Modulation (CC 70-73: OP1, OP3, OP2, OP4) - Screen 13
+        case 70: fmsettings[ch][45] = value; synced = true; break;  // OP1
+        case 71: fmsettings[ch][46] = value; synced = true; break;  // OP3
+        case 72: fmsettings[ch][47] = value; synced = true; break;  // OP2
+        case 73: fmsettings[ch][48] = value; synced = true; break;  // OP4
+
+        // SSG-EG (CC 90-93: OP1, OP3, OP2, OP4) - Screen 12
+        case 90: fmsettings[ch][11] = value; synced = true; break;  // OP1
+        case 91: fmsettings[ch][21] = value; synced = true; break;  // OP3
+        case 92: fmsettings[ch][31] = value; synced = true; break;  // OP2
+        case 93: fmsettings[ch][41] = value; synced = true; break;  // OP4
+
+        default:
+            return;  // Not a synced CC, exit early
+    }
+
+    if (synced) {
+        // Mark patch as edited
+        fmsettings[ch][49] = 1;
+
+        // Auto-switch to affected operator on envelope viz screen only
+        if (affected_operator != 255 && fmscreen == 6) {
+            selected_operator = affected_operator;
+        }
+
+        // Set dirty flag for display refresh (rate-limited in main loop)
+        if (edit_mode == 2) {  // EDIT mode (both MONO and POLY)
+            cc_display_dirty = true;
+        }
+    }
 }

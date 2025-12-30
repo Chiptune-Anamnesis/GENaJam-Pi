@@ -1,4 +1,4 @@
-# GENajam-Pi v1.39
+# GENajam-Pi v1.40
 
 Get one here! https://hobbychop.com
 
@@ -29,9 +29,10 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 - **Accelerated Navigation** - Hold buttons for fast file scrolling
 - **USB + TRS MIDI** - Both USB MIDI IN and TRS 3.5mm MIDI IN/OUT
 - **Savestate System** - Save and load complete 6-channel configurations
-- **Settings Persistence** - MIDI channel, region (NTSC/PAL), velocity curves, CC sync
+- **Settings Persistence** - MIDI channel, region (NTSC/PAL), velocity curves, CC sync, poly-multi
 - **Smart Voice Management** - True mono mode with last-note priority
 - **Stuckless Mode Switching** - Automatic note-off when changing modes
+- **Poly Multi-Timbral Mode** - Assign different TFI instruments per voice channel while maintaining polyphony
 
 ## Operation Modes
 
@@ -161,40 +162,73 @@ GENajam-Pi supports external MIDI CC control for real-time parameter manipulatio
 ### CC Sync Behavior
 - **POLY Mode**: CCs received on the configured MIDI channel sync to all 6 FM channels
 - **MONO Mode**: CCs received on channels 1-6 sync to the corresponding FM channel
-- **Live Display**: Envelope visualization updates in real-time when external CCs modify ADSR
+- **Live Display**: All FM parameter screens update in real-time when external CCs modify values
 - **Toggleable**: CC Sync can be disabled in Settings menu if not needed
+- **Rate Limited**: Display updates are rate-limited to 20Hz to prevent MIDI throughput issues
 
-### ADSR Parameter CCs (Synced to Display)
+### FM Parameter CCs (Synced to Display)
 
-These CCs update both GENMDM and the internal `fmsettings[]` array, enabling live display feedback:
+These CCs update both GENMDM and the internal `fmsettings[]` array, enabling live display feedback on the corresponding FM Edit screens:
 
-| CC | Parameter | Operator |
-|----|-----------|----------|
-| **Attack Rate** |||
-| 43 | Attack Rate | OP1 |
-| 44 | Attack Rate | OP3 |
-| 45 | Attack Rate | OP2 |
-| 46 | Attack Rate | OP4 |
-| **Decay 1 Rate** |||
-| 47 | Decay 1 Rate | OP1 |
-| 48 | Decay 1 Rate | OP3 |
-| 49 | Decay 1 Rate | OP2 |
-| 50 | Decay 1 Rate | OP4 |
-| **Decay 2 Rate** |||
-| 51 | Decay 2 Rate | OP1 |
-| 52 | Decay 2 Rate | OP3 |
-| 53 | Decay 2 Rate | OP2 |
-| 54 | Decay 2 Rate | OP4 |
-| **Sustain Level** |||
-| 55 | Sustain Level | OP1 |
-| 56 | Sustain Level | OP3 |
-| 57 | Sustain Level | OP2 |
-| 58 | Sustain Level | OP4 |
-| **Release Rate** |||
-| 59 | Release Rate | OP1 |
-| 60 | Release Rate | OP3 |
-| 61 | Release Rate | OP2 |
-| 62 | Release Rate | OP4 |
+| CC | Parameter | Operator | Screen |
+|----|-----------|----------|--------|
+| 14 | Algorithm | - | 1 |
+| 15 | Feedback | - | 1 |
+| **Total Level** ||||
+| 16 | Total Level | OP1 | 2 |
+| 17 | Total Level | OP3 | 2 |
+| 18 | Total Level | OP2 | 2 |
+| 19 | Total Level | OP4 | 2 |
+| **Multiplier** ||||
+| 20 | Multiplier | OP1 | 3 |
+| 21 | Multiplier | OP3 | 3 |
+| 22 | Multiplier | OP2 | 3 |
+| 23 | Multiplier | OP4 | 3 |
+| **Detune** ||||
+| 24 | Detune | OP1 | 4 |
+| 25 | Detune | OP3 | 4 |
+| 26 | Detune | OP2 | 4 |
+| 27 | Detune | OP4 | 4 |
+| **Rate Scaling** ||||
+| 39 | Rate Scaling | OP1 | 5 |
+| 40 | Rate Scaling | OP3 | 5 |
+| 41 | Rate Scaling | OP2 | 5 |
+| 42 | Rate Scaling | OP4 | 5 |
+| **Attack Rate** ||||
+| 43 | Attack Rate | OP1 | 6/7 |
+| 44 | Attack Rate | OP3 | 6/7 |
+| 45 | Attack Rate | OP2 | 6/7 |
+| 46 | Attack Rate | OP4 | 6/7 |
+| **Decay 1 Rate** ||||
+| 47 | Decay 1 Rate | OP1 | 8 |
+| 48 | Decay 1 Rate | OP3 | 8 |
+| 49 | Decay 1 Rate | OP2 | 8 |
+| 50 | Decay 1 Rate | OP4 | 8 |
+| **Decay 2 Rate** ||||
+| 51 | Decay 2 Rate | OP1 | 10 |
+| 52 | Decay 2 Rate | OP3 | 10 |
+| 53 | Decay 2 Rate | OP2 | 10 |
+| 54 | Decay 2 Rate | OP4 | 10 |
+| **Sustain Level** ||||
+| 55 | Sustain Level | OP1 | 9 |
+| 56 | Sustain Level | OP3 | 9 |
+| 57 | Sustain Level | OP2 | 9 |
+| 58 | Sustain Level | OP4 | 9 |
+| **Release Rate** ||||
+| 59 | Release Rate | OP1 | 11 |
+| 60 | Release Rate | OP3 | 11 |
+| 61 | Release Rate | OP2 | 11 |
+| 62 | Release Rate | OP4 | 11 |
+| **Amp Modulation** ||||
+| 70 | Amp Modulation | OP1 | 13 |
+| 71 | Amp Modulation | OP3 | 13 |
+| 72 | Amp Modulation | OP2 | 13 |
+| 73 | Amp Modulation | OP4 | 13 |
+| **SSG-EG** ||||
+| 90 | SSG-EG | OP1 | 12 |
+| 91 | SSG-EG | OP3 | 12 |
+| 92 | SSG-EG | OP2 | 12 |
+| 93 | SSG-EG | OP4 | 12 |
 
 ### Special CC Handling
 
@@ -205,23 +239,15 @@ These CCs update both GENMDM and the internal `fmsettings[]` array, enabling liv
 
 ### Pass-Through CCs (Not Synced to Display)
 
-These CCs are forwarded to GENMDM but don't update internal display state:
+These CCs are forwarded to GENMDM but don't update internal display state (global LFO parameters):
 
 | CC | Parameter |
 |----|-----------|
-| 14 | Algorithm |
-| 15 | Feedback |
-| 16-19 | Total Level (OP1, OP3, OP2, OP4) |
-| 20-23 | Multiplier (OP1, OP3, OP2, OP4) |
-| 24-27 | Detune (OP1, OP3, OP2, OP4) |
-| 39-42 | Rate Scaling (OP1, OP3, OP2, OP4) |
-| 70-73 | Amplitude Modulation (OP1, OP3, OP2, OP4) |
 | 74 | LFO Enable |
 | 75 | LFO Speed |
 | 76 | FM Depth |
 | 77 | AM Depth |
 | 83 | Region (75=NTSC, 1=PAL) |
-| 90-93 | SSG-EG (OP1, OP3, OP2, OP4) |
 
 **Note:** The operator order in GenMDM CC numbering is OP1, OP3, OP2, OP4 (not sequential) due to YM2612 register layout.
 
@@ -246,7 +272,7 @@ These CCs are forwarded to GENMDM but don't update internal display state:
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.39.uf2` file from releases
+1. Download the latest `genajam-pico-v1.40.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -286,11 +312,12 @@ Navigate with LEFT/RIGHT, adjust with UP/DOWN, save with BTN2.
 
 | Screen | Setting | Options |
 |--------|---------|---------|
-| 1/5 | MIDI Channel | 1-16 |
-| 2/5 | Region | NTSC/USA (60Hz), PAL/EUR (50Hz) |
-| 3/5 | Velocity Curve | Linear, Soft, Medium, Hard, ImpBox |
-| 4/5 | CC Sync | ON (default), OFF |
-| 5/5 | About | Version info |
+| 1/6 | MIDI Channel | 1-16 |
+| 2/6 | Region | NTSC/USA (60Hz), PAL/EUR (50Hz) |
+| 3/6 | Velocity Curve | Linear, Soft, Medium, Hard, ImpBox |
+| 4/6 | CC Sync | ON (default), OFF |
+| 5/6 | Poly Multi | OFF (default), ON - Per-channel TFI/editing in POLY mode |
+| 6/6 | About | Version info |
 
 ## Technical Specifications
 
@@ -308,11 +335,21 @@ Navigate with LEFT/RIGHT, adjust with UP/DOWN, save with BTN2.
 
 ## Version History
 
+### v1.40 Changes
+- Added Poly Multi-Timbral mode (POLY-MT) - assign different TFI instruments to each of the 6 voice channels while maintaining polyphonic voice allocation
+- New settings option (5/6): POLY-MT toggle (OFF by default, ON enables per-channel TFI/editing in POLY mode)
+- POLY PRESET mode with POLY-MT enabled: UP/DOWN navigates channels (like MONO), LEFT/RIGHT browses TFI for current channel
+- POLY FM EDIT mode with POLY-MT enabled: knob changes only affect the currently selected channel
+- Display shows channel indicator (C1-C6) in POLY modes when POLY-MT is enabled
+- Settings now persist poly_multi_timbral to EEPROM and SD card
+
 ### v1.39 Changes
-- Added external MIDI CC control for ADSR parameters with live display sync
+- Added external MIDI CC sync for ALL FM parameters (Algorithm, Feedback, TL, Mult, Detune, RS, ADSR, SSG-EG, Amp Mod)
 - Added Envelope Visualization screen (screen 6) with graphical ADSR display
 - Added CC Sync setting (toggleable in Settings menu, default ON)
 - Added BTN1 operator cycling on envelope visualization screen
+- Optimized poly mode CC sync with deferred display updates (prevents note hanging)
+- Rate-limited display updates to 20Hz for smooth CC automation without MIDI dropouts
 - Renamed OPT1/OPT2 button labels to BTN1/BTN2 to match newest PCB silkscreen
 - Fixed TFI Edit changes being wiped out by changing to TFI select mode
 - Renumbered FM parameter screens (6-13 → 7-14) to accommodate envelope viz

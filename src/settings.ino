@@ -73,7 +73,7 @@ void bootprompt(void) {
         }
 
         // Save settings to EEPROM
-        flash_write_settings(region, midichannel, velocity_curve);
+        flash_write_settings(region, midichannel, velocity_curve, external_cc_sync, poly_multi_timbral);
 
         // Show confirmation
         mutex_enter_blocking(&display_mutex);
@@ -143,9 +143,15 @@ void saveSettingsToSD(void) {
   settingsFile.println(midichannel);
   settingsFile.print("velocity_curve=");
   settingsFile.println(velocity_curve);
+  settingsFile.print("external_cc_sync=");
+  settingsFile.println(external_cc_sync);
+  settingsFile.print("poly_multi_timbral=");
+  settingsFile.println(poly_multi_timbral);
   settingsFile.println("# 0=NTSC, 1=PAL");
   settingsFile.println("# MIDI channel 1-16");
   settingsFile.println("# Velocity curve 0-4");
+  settingsFile.println("# External CC sync 0=OFF, 1=ON");
+  settingsFile.println("# Poly multi-timbral 0=OFF, 1=ON");
 
   settingsFile.flush(); // Ensure data is written to SD card
   settingsFile.close();
@@ -206,6 +212,12 @@ bool loadSettingsFromSD(void) {
       } else if (key == "velocity_curve") {
         velocity_curve = value.toInt();
         if (velocity_curve > 4) velocity_curve = 4; // Validate
+      } else if (key == "external_cc_sync") {
+        external_cc_sync = value.toInt();
+        if (external_cc_sync > 1) external_cc_sync = 1; // Validate (0 or 1)
+      } else if (key == "poly_multi_timbral") {
+        poly_multi_timbral = value.toInt();
+        if (poly_multi_timbral > 1) poly_multi_timbral = 0; // Validate (0 or 1)
       }
     }
   }
@@ -228,16 +240,16 @@ bool loadSettingsFromSD(void) {
 }
 
 void saveSettings(void) {
-  bool needs_restart = false;
+  bool needs_save = false;
 
   if (temp_midichannel != midichannel) {
     midichannel = temp_midichannel;
-    needs_restart = true;
+    needs_save = true;
   }
 
   if (temp_region != region) {
     region = temp_region;
-    needs_restart = true;
+    needs_save = true;
 
     // Apply region change immediately
     if (region == 0) {
@@ -249,18 +261,26 @@ void saveSettings(void) {
 
   if (temp_velocity_curve != velocity_curve) {
     velocity_curve = temp_velocity_curve;
-    needs_restart = true;
+    needs_save = true;
   }
 
-  if (needs_restart) {
-    flash_write_settings(region, midichannel, velocity_curve);
+  if (temp_external_cc_sync != external_cc_sync) {
+    external_cc_sync = temp_external_cc_sync;
+    needs_save = true;
+  }
+
+  if (temp_poly_multi_timbral != poly_multi_timbral) {
+    poly_multi_timbral = temp_poly_multi_timbral;
+    needs_save = true;
+  }
+
+  if (needs_save) {
+    flash_write_settings(region, midichannel, velocity_curve, external_cc_sync, poly_multi_timbral);
     saveSettingsToSD(); // Also save to SD card backup
 
     oled_clear();
     oled_print(0, 0, "SETTINGS SAVED!");
-    if (needs_restart) {
-      oled_print(0, 16, "Changes applied");
-    }
+    oled_print(0, 16, "Changes applied");
     oled_refresh();
     delay(1500);
   }

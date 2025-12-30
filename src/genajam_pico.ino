@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.38";
+const char* GENAJAM_VERSION = "v1.40";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -169,8 +169,18 @@ uint8_t temp_midichannel = 1;
 uint8_t temp_region = 0;
 uint8_t velocity_curve = 1;  // 0=Linear, 1=Soft, 2=Medium, 3=Hard
 uint8_t temp_velocity_curve = 1;
+uint8_t external_cc_sync = 1;  // 0=OFF, 1=ON (default ON) - sync external MIDI CC to fmsettings
+uint8_t temp_external_cc_sync = 1;
+uint8_t poly_multi_timbral = 0;  // 0=OFF (default), 1=ON - allow per-channel TFI/editing in poly mode
+uint8_t temp_poly_multi_timbral = 0;
+uint8_t selected_operator = 0;  // 0-3 for OP1-OP4 on envelope viz screen
 bool settings_changed = false;
 bool system_ready = false;  // MIDI blocking flag during boot/setup
+
+// CC sync display optimization - dirty flag pattern with rate limiting
+volatile bool cc_display_dirty = false;           // Flag: display needs CC refresh
+volatile unsigned long last_cc_display_time = 0;  // Last CC display refresh timestamp
+const unsigned long CC_DISPLAY_MIN_INTERVAL = 50; // Minimum ms between CC display refreshes (20Hz max)
 uint8_t viz_sub_mode = 0;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network
 void settingsDisplay(void);
 void settingsAdjustUp(void);
@@ -184,6 +194,7 @@ void handleMidiNoteForAsteroids(uint8_t note, uint8_t velocity);
 void handleMidiNoteForStarfighter(uint8_t note, uint8_t velocity);
 void handleMidiNoteForNeuralNet(uint8_t note, uint8_t velocity);
 void showVizSubModeMessage(void);
+void envelopeVizDisplay(void);
 
 // MIDI monitoring
 unsigned long midi_process_count = 0;
@@ -285,7 +296,7 @@ uint16_t savenumber = 1;
 char savefilefull[] = "/tfi/user/newpatch001.tfi";
 
 // Flash storage replacement with EEPROM
-void flash_write_settings(uint8_t region_val, uint8_t midi_ch, uint8_t vel_curve);
+void flash_write_settings(uint8_t region_val, uint8_t midi_ch, uint8_t vel_curve, uint8_t cc_sync, uint8_t poly_multi);
 uint8_t flash_read_setting(uint8_t offset);
 
 // Core functions
@@ -334,6 +345,28 @@ void midi_send_note_off(uint8_t channel, uint8_t note, uint8_t velocity);
 void midi_send_pitch_bend(uint8_t channel, int16_t bend);
 void handle_midi_input(void);
 void initializeFMChip(void);
+
+// Service deferred CC display updates with rate limiting
+// Called from main loop to decouple display from MIDI processing
+void serviceCCDisplayRefresh(void) {
+  if (!cc_display_dirty) return;
+
+  unsigned long now = millis();
+  if (now - last_cc_display_time < CC_DISPLAY_MIN_INTERVAL) return;
+
+  // Clear flag and update timestamp BEFORE refresh to prevent re-entry
+  cc_display_dirty = false;
+  last_cc_display_time = now;
+
+  // Refresh display if in FM edit mode on any parameter screen
+  if (edit_mode == 2) {  // EDIT mode (both MONO and POLY)
+    if (fmscreen == 6) {
+      envelopeVizDisplay();  // Special envelope visualization screen
+    } else if (fmscreen >= 1 && fmscreen <= 14) {
+      fmparamdisplay();  // All other FM parameter screens
+    }
+  }
+}
 
 void selectMuxChannel(uint8_t channel) {
   digitalWrite(MUX_S0_PIN, (channel & 0x01) ? HIGH : LOW);
@@ -393,19 +426,27 @@ void setup() {
     region = flash_read_setting(0);
     midichannel = flash_read_setting(1);
     velocity_curve = flash_read_setting(2);
+    external_cc_sync = flash_read_setting(3);
+    poly_multi_timbral = flash_read_setting(4);
 
     if (region == 255) region = 0;
     if (midichannel == 255) midichannel = 1;
     if (velocity_curve == 255) velocity_curve = 4; // Default to ImpBox curve (original)
+    if (external_cc_sync == 255) external_cc_sync = 1; // Default to ON
+    if (poly_multi_timbral == 255) poly_multi_timbral = 0; // Default to OFF
   } else if (!sd_card_available) {
     // SD card not available, use EEPROM directly
     region = flash_read_setting(0);
     midichannel = flash_read_setting(1);
     velocity_curve = flash_read_setting(2);
+    external_cc_sync = flash_read_setting(3);
+    poly_multi_timbral = flash_read_setting(4);
 
     if (region == 255) region = 0;
     if (midichannel == 255) midichannel = 1;
     if (velocity_curve == 255) velocity_curve = 4; // Default to ImpBox curve (original)
+    if (external_cc_sync == 255) external_cc_sync = 1; // Default to ON
+    if (poly_multi_timbral == 255) poly_multi_timbral = 0; // Default to OFF
   }
 
   if (region == 0) {
@@ -520,6 +561,9 @@ void loop() {
     if (display_needs_refresh && edit_mode == 1) {  // Preset mode now at position 1
       updateFileDisplay();
     }
+
+    // Service deferred CC display updates (rate-limited to 20Hz)
+    serviceCCDisplayRefresh();
   }
 
   // Update MIDI stats for core 1 visualizer every 100ms
@@ -558,13 +602,13 @@ void loop() {
     switch (lcd_key) {
       case btnRIGHT:
         settings_screen++;
-        if (settings_screen > 4) settings_screen = 1;
+        if (settings_screen > 6) settings_screen = 1;
         settingsDisplay();
         break;
 
       case btnLEFT:
         settings_screen--;
-        if (settings_screen == 0) settings_screen = 4;
+        if (settings_screen == 0) settings_screen = 6;
         settingsDisplay();
         break;
 
@@ -695,14 +739,22 @@ void loop() {
         switch (lcd_key) {
           case btnRIGHT:
             fmscreen++;
-            if (fmscreen == 14) fmscreen = 1;
+            if (fmscreen == 15) fmscreen = 1;
             fmparamdisplay();
             break;
 
           case btnLEFT:
             fmscreen--;
-            if (fmscreen == 0) fmscreen = 13;
+            if (fmscreen == 0) fmscreen = 14;
             fmparamdisplay();
+            break;
+
+          case btnOPT1:
+            // Cycle operator on envelope viz screen
+            if (fmscreen == 6) {
+              selected_operator = (selected_operator + 1) % 4;
+              envelopeVizDisplay();
+            }
             break;
 
           case btnUP:
@@ -798,23 +850,25 @@ void loop() {
         switch (lcd_key) {
           case btnRIGHT:
             {
-              // Navigate right in current browse mode (affects all channels)
-              tfichannel = 1;
-              // First update channel 1's selection
-              uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
-              uint16_t current_count = getCurrentTfiCount();
-              if (current_count > 0) {
-                // Only ALL mode now - cycle through all files
-                tfifilenumber[safe_channel]++;
-                if (tfifilenumber[safe_channel] >= n) {
-                  tfifilenumber[safe_channel] = 0;
+              if (poly_multi_timbral == 1) {
+                // Poly-multi mode: navigate only the current channel
+                navigateTfiRight(tfichannel);
+              } else {
+                // Standard poly mode: navigate all channels together
+                tfichannel = 1;
+                uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
+                uint16_t current_count = getCurrentTfiCount();
+                if (current_count > 0) {
+                  tfifilenumber[safe_channel]++;
+                  if (tfifilenumber[safe_channel] >= n) {
+                    tfifilenumber[safe_channel] = 0;
+                  }
+                  // Copy to all channels before preview
+                  for (int i = 1; i <= 5; i++) {
+                    tfifilenumber[i] = tfifilenumber[0];
+                  }
+                  previewCurrentTfi(1);
                 }
-                // Copy to all channels before preview
-                for (int i = 1; i <= 5; i++) {
-                  tfifilenumber[i] = tfifilenumber[0];
-                }
-                // Now call preview with all channels having the same TFI
-                previewCurrentTfi(1);
               }
               updateFileDisplay();
             }
@@ -822,24 +876,26 @@ void loop() {
 
           case btnLEFT:
             {
-              // Navigate left in current browse mode (affects all channels)
-              tfichannel = 1;
-              // First update channel 1's selection
-              uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
-              uint16_t current_count = getCurrentTfiCount();
-              if (current_count > 0) {
-                // Only ALL mode now - cycle through all files
-                if (tfifilenumber[safe_channel] == 0) {
-                  tfifilenumber[safe_channel] = n - 1;
-                } else {
-                  tfifilenumber[safe_channel]--;
+              if (poly_multi_timbral == 1) {
+                // Poly-multi mode: navigate only the current channel
+                navigateTfiLeft(tfichannel);
+              } else {
+                // Standard poly mode: navigate all channels together
+                tfichannel = 1;
+                uint8_t safe_channel = SAFE_CHANNEL_INDEX(1);
+                uint16_t current_count = getCurrentTfiCount();
+                if (current_count > 0) {
+                  if (tfifilenumber[safe_channel] == 0) {
+                    tfifilenumber[safe_channel] = n - 1;
+                  } else {
+                    tfifilenumber[safe_channel]--;
+                  }
+                  // Copy to all channels before preview
+                  for (int i = 1; i <= 5; i++) {
+                    tfifilenumber[i] = tfifilenumber[0];
+                  }
+                  previewCurrentTfi(1);
                 }
-                // Copy to all channels before preview
-                for (int i = 1; i <= 5; i++) {
-                  tfifilenumber[i] = tfifilenumber[0];
-                }
-                // Now call preview with all channels having the same TFI
-                previewCurrentTfi(1);
               }
               updateFileDisplay();
             }
@@ -857,17 +913,23 @@ void loop() {
 
           case btnOPT1:
             if (preview_mode) {
-              // Load the TFI on all channels first, then start preview note on channel 1
+              // Load the TFI and start preview note
               if (!opt1_preview_playing) {
-                for (int i = 1; i <= 6; i++) {
-                  tfiLoadImmediateOnChannel(i);
+                if (poly_multi_timbral == 1) {
+                  // Poly-multi mode: only load on current channel
+                  tfiLoadImmediateOnChannel(tfichannel);
+                  midi_send_note_on(tfichannel, PREVIEW_NOTE, 127);
+                } else {
+                  // Standard poly mode: load on all channels
+                  for (int i = 1; i <= 6; i++) {
+                    tfiLoadImmediateOnChannel(i);
+                  }
+                  midi_send_note_on(1, PREVIEW_NOTE, 127);
                 }
-                midi_send_note_on(1, PREVIEW_NOTE, 127);
                 opt1_preview_playing = true;
               }
             } else {
-              // Normal load behavior in non-preview modes
-              // Load the currently browsed TFI immediately on all poly channels
+              // Normal load behavior
               mutex_enter_blocking(&display_mutex);
               display.clearDisplay();
               display.setCursor(0, 0);
@@ -875,17 +937,40 @@ void loop() {
               display.display();
               mutex_exit(&display_mutex);
 
-              for (int i = 1; i <= 6; i++) {
-                tfichannel = i;
-                tfiLoadImmediateOnChannel(i);
+              if (poly_multi_timbral == 1) {
+                // Poly-multi mode: only load on current channel
+                tfiLoadImmediateOnChannel(tfichannel);
+              } else {
+                // Standard poly mode: load on all channels
+                for (int i = 1; i <= 6; i++) {
+                  tfichannel = i;
+                  tfiLoadImmediateOnChannel(i);
+                }
+                tfichannel = 1; // Reset to channel 1
               }
-              tfichannel = 1; // Reset to channel 1
               updateFileDisplay();
             }
             break;
 
           case btnUP:
-            saveprompt();
+            if (poly_multi_timbral == 1) {
+              // Poly-multi mode: channel navigation
+              tfichannel++;
+              if (tfichannel > 6) tfichannel = 1;
+              updateFileDisplay();
+            } else {
+              // Standard poly mode: save prompt
+              saveprompt();
+            }
+            break;
+
+          case btnDOWN:
+            if (poly_multi_timbral == 1) {
+              // Poly-multi mode: channel navigation
+              tfichannel--;
+              if (tfichannel == 0) tfichannel = 6;
+              updateFileDisplay();
+            }
             break;
 
           case btnPOLY:
@@ -902,14 +987,22 @@ void loop() {
         switch (lcd_key) {
           case btnRIGHT:
             fmscreen++;
-            if (fmscreen == 14) fmscreen = 1;
+            if (fmscreen == 15) fmscreen = 1;
             fmparamdisplay();
             break;
 
           case btnLEFT:
             fmscreen--;
-            if (fmscreen == 0) fmscreen = 13;
+            if (fmscreen == 0) fmscreen = 14;
             fmparamdisplay();
+            break;
+
+          case btnOPT1:
+            // Cycle operator on envelope viz screen
+            if (fmscreen == 6) {
+              selected_operator = (selected_operator + 1) % 4;
+              envelopeVizDisplay();
+            }
             break;
 
           case btnUP:
@@ -977,10 +1070,12 @@ void setup_oled(void) {
   delay(1000);
 }
 
-void flash_write_settings(uint8_t region_val, uint8_t midi_ch, uint8_t vel_curve) {
+void flash_write_settings(uint8_t region_val, uint8_t midi_ch, uint8_t vel_curve, uint8_t cc_sync, uint8_t poly_multi) {
   EEPROM.write(0, region_val);
   EEPROM.write(1, midi_ch);
   EEPROM.write(2, vel_curve);
+  EEPROM.write(3, cc_sync);
+  EEPROM.write(4, poly_multi);
   EEPROM.commit();  // Save changes to flash memory
 }
 

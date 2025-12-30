@@ -1,3 +1,11 @@
+// External variables for envelope viz screen
+extern uint8_t selected_operator;
+extern uint8_t tfichannel;
+extern uint8_t fmsettings[6][50];
+
+// CC sync display optimization - use deferred update pattern
+extern volatile bool cc_display_dirty;
+
 void tfisend(int opnarray[42], int sendchannel) {
   // Send all TFI data to appropriate CCs with periodic MIDI processing
 
@@ -245,8 +253,61 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Attack Rate - THESE WORK CORRECTLY, NO SCALING
+    // Envelope Visualization - ADSR control for selected operator
     case 6:
+      {
+        // Get fmsettings indices based on selected operator
+        int op_offset;
+        switch (selected_operator) {
+          case 0: op_offset = 0; break;   // OP1
+          case 1: op_offset = 20; break;  // OP2 (stored at +20)
+          case 2: op_offset = 10; break;  // OP3 (stored at +10)
+          case 3: op_offset = 30; break;  // OP4
+          default: op_offset = 0; break;
+        }
+
+        // Get GenMDM CC numbers for selected operator
+        // CC layout: OP1=base, OP3=base+1, OP2=base+2, OP4=base+3
+        int ar_cc, d1r_cc, sl_cc, rr_cc;
+        switch (selected_operator) {
+          case 0: ar_cc = 43; d1r_cc = 47; sl_cc = 55; rr_cc = 59; break; // OP1
+          case 1: ar_cc = 45; d1r_cc = 49; sl_cc = 57; rr_cc = 61; break; // OP2
+          case 2: ar_cc = 44; d1r_cc = 48; sl_cc = 56; rr_cc = 60; break; // OP3
+          case 3: ar_cc = 46; d1r_cc = 50; sl_cc = 58; rr_cc = 62; break; // OP4
+          default: ar_cc = 43; d1r_cc = 47; sl_cc = 55; rr_cc = 59; break;
+        }
+
+        if (potnumber == 0) {
+          // Attack Rate
+          fmsettings[tfichannel - 1][6 + op_offset] = potvalue;
+          midi_send_cc(tfichannel, ar_cc, potvalue);
+        }
+        if (potnumber == 1) {
+          // Decay 1 Rate
+          fmsettings[tfichannel - 1][7 + op_offset] = potvalue;
+          midi_send_cc(tfichannel, d1r_cc, potvalue);
+        }
+        if (potnumber == 2) {
+          // Sustain Level (inverted)
+          fmsettings[tfichannel - 1][10 + op_offset] = 127 - potvalue;
+          midi_send_cc(tfichannel, sl_cc, 127 - potvalue);
+        }
+        if (potnumber == 3) {
+          // Release Rate
+          fmsettings[tfichannel - 1][9 + op_offset] = potvalue;
+          midi_send_cc(tfichannel, rr_cc, potvalue);
+        }
+
+        // Mark patch as edited
+        fmsettings[tfichannel - 1][49] = 1;
+
+        // Set dirty flag for deferred display update (rate-limited in main loop)
+        cc_display_dirty = true;
+        break;
+      }
+
+    // Attack Rate - THESE WORK CORRECTLY, NO SCALING (was case 6)
+    case 7:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][6] = potvalue;
@@ -267,8 +328,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Decay Rate 1 - THESE WORK CORRECTLY, NO SCALING
-    case 7:
+    // Decay Rate 1 - THESE WORK CORRECTLY, NO SCALING (was case 7)
+    case 8:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][7] = potvalue;
@@ -289,8 +350,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Sustain (2nd Total Level) - INVERTED CORRECTLY
-    case 8:
+    // Sustain (2nd Total Level) - INVERTED CORRECTLY (was case 8)
+    case 9:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][10] = 127 - potvalue;
@@ -311,8 +372,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Decay Rate 2 - THESE WORK CORRECTLY, NO SCALING
-    case 9:
+    // Decay Rate 2 - THESE WORK CORRECTLY, NO SCALING (was case 9)
+    case 10:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][8] = potvalue;
@@ -333,8 +394,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Release Rate - THESE WORK CORRECTLY, NO SCALING
-    case 10:
+    // Release Rate - THESE WORK CORRECTLY, NO SCALING (was case 10)
+    case 11:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][9] = potvalue;
@@ -355,8 +416,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // SSG-EG - THESE WORK CORRECTLY, NO SCALING
-    case 11:
+    // SSG-EG - THESE WORK CORRECTLY, NO SCALING (was case 11)
+    case 12:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][11] = potvalue;
@@ -377,8 +438,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // Amp Mod - THESE WORK CORRECTLY, NO SCALING
-    case 12:
+    // Amp Mod - THESE WORK CORRECTLY, NO SCALING (was case 12)
+    case 13:
       {
         if (potnumber == 0) {
           fmsettings[tfichannel - 1][45] = potvalue;
@@ -399,8 +460,8 @@ void fmccsend(uint8_t potnumber, uint8_t potvalue) {
         break;
       }
 
-    // LFO/FM/AM Level
-    case 13:
+    // LFO/FM/AM Level (was case 13)
+    case 14:
       {
         // Blank out unused pot display (like original)
         oled_clear();

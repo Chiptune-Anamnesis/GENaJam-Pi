@@ -118,6 +118,8 @@ void showModeMessage() {
       temp_midichannel = midichannel;
       temp_region = region;
       temp_velocity_curve = velocity_curve;
+      temp_external_cc_sync = external_cc_sync;
+      temp_poly_multi_timbral = poly_multi_timbral;
       settings_changed = false;
       settings_screen = 1;
       // Initialize pot values

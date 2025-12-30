@@ -404,8 +404,8 @@ void loadPendingTFI(void) {
     dataFile.close();
 
     // Apply based on mode
-    if (mode == 3 || mode == 4) {
-        // POLY mode: apply to all 6 channels
+    if ((mode == 3 || mode == 4) && poly_multi_timbral == 0) {
+        // Standard POLY mode: apply to all 6 channels
         for (uint8_t ch = 1; ch <= 6; ch++) {
             tfisend(tfiarray, ch);
             delay(2);
@@ -415,7 +415,7 @@ void loadPendingTFI(void) {
             loaded_tfi[i] = tfifilenumber[0];
         }
     } else {
-        // MONO mode: apply only to the specific channel
+        // MONO mode or POLY-MULTI mode: apply only to the specific channel
         tfisend(tfiarray, pending_tfi_channel);
         // Update tracking for this specific channel
         loaded_tfi[pending_tfi_channel-1] = tfifilenumber[pending_tfi_channel-1];
@@ -983,4 +983,221 @@ void deleteSelectedPreset(void) {
                 break;
         }
     }
+}
+
+void extractFolderName(const char* fullPath, char* folderName) {
+  const char* lastSlash = strrchr(fullPath, '/');
+  if (lastSlash == NULL) {
+    strcpy(folderName, "root");
+    return;
+  }
+
+  const char* secondLastSlash = lastSlash - 1;
+  while (secondLastSlash > fullPath && *secondLastSlash != '/') {
+    secondLastSlash--;
+  }
+
+  if (*secondLastSlash == '/') secondLastSlash++;
+
+  int len = lastSlash - secondLastSlash;
+  if (len > 15) len = 15;
+  strncpy(folderName, secondLastSlash, len);
+  folderName[len] = '\0';
+}
+
+void sortFilesByFolder(void) {
+  // Only sort library files (skip user files which are already at the beginning)
+  if (n <= user_file_count) return;  // No library files to sort
+
+  // Bubble sort library files by folder name, then by filename
+  for (int i = user_file_count; i < n - 1; i++) {
+    for (int j = user_file_count; j < n - 1 - (i - user_file_count); j++) {
+      bool should_swap = false;
+
+      // First compare folder names
+      int folder_compare = strcmp(file_folders[j], file_folders[j + 1]);
+      if (folder_compare > 0) {
+        should_swap = true;
+      } else if (folder_compare == 0) {
+        // Same folder, compare filenames
+        if (strcmp(filenames[j], filenames[j + 1]) > 0) {
+          should_swap = true;
+        }
+      }
+
+      if (should_swap) {
+        char temp_filename[MaxNumberOfChars + 1];
+        char temp_fullname[FullNameChars];
+        char temp_folder[16];
+
+        strcpy(temp_filename, filenames[j]);
+        strcpy(filenames[j], filenames[j + 1]);
+        strcpy(filenames[j + 1], temp_filename);
+
+        strcpy(temp_fullname, fullnames[j]);
+        strcpy(fullnames[j], fullnames[j + 1]);
+        strcpy(fullnames[j + 1], temp_fullname);
+
+        strcpy(temp_folder, file_folders[j]);
+        strcpy(file_folders[j], file_folders[j + 1]);
+        strcpy(file_folders[j + 1], temp_folder);
+      }
+    }
+  }
+}
+
+// TFI browse mode management functions
+void toggleTfiBrowseMode(void) {
+  // Save current selection before mode change
+  bool was_all_files_mode = (current_tfi_mode == TFI_ALL || preview_mode);
+  if (was_all_files_mode) {
+    for (int i = 0; i < 6; i++) {
+      remembered_tfi_selection[i] = tfifilenumber[i];
+      remembered_was_library_file[i] = (tfifilenumber[i] >= user_file_count);
+    }
+  }
+
+  if (!preview_mode) {
+    // Switch to preview mode
+    preview_mode = true;
+  } else {
+    // Exit preview mode and go back to ALL
+    preview_mode = false;
+    current_tfi_mode = TFI_ALL;
+  }
+  updateTfiSelection();
+}
+
+void updateTfiSelection(void) {
+  uint16_t max_files = getCurrentTfiCount();
+  if (max_files == 0) {
+    for (int i = 0; i < 6; i++) {
+      tfifilenumber[i] = 0;
+    }
+    return;
+  }
+
+  static TfiBrowseMode last_mode = TFI_ALL;
+  static bool was_preview_mode = false;
+
+  // Check if we're in an "all files" mode (ALL or PREVIEW)
+  bool is_all_files_mode = (current_tfi_mode == TFI_ALL || preview_mode);
+  bool was_all_files_mode = (last_mode == TFI_ALL || was_preview_mode);
+
+  // If switching TO an "all files" mode, restore remembered selections
+  if (is_all_files_mode && !was_all_files_mode) {
+    for (int i = 0; i < 6; i++) {
+      tfifilenumber[i] = remembered_tfi_selection[i];
+      // Clamp to valid range just in case
+      if (tfifilenumber[i] >= n) {
+        tfifilenumber[i] = n > 0 ? n - 1 : 0;
+      }
+    }
+  }
+
+  // Now handle the current mode's constraints
+  for (int i = 0; i < 6; i++) {
+    uint16_t current_selection = tfifilenumber[i];
+
+    // ALL mode - just clamp if needed
+    if (current_selection >= n) {
+      tfifilenumber[i] = n > 0 ? n - 1 : 0;
+    }
+
+    // PREVIEW mode uses same constraint as ALL mode
+    if (preview_mode && current_selection >= n) {
+      tfifilenumber[i] = n > 0 ? n - 1 : 0;
+    }
+  }
+
+  // In poly mode, ensure all channels have the same selection
+  if (poly_mode == 1) {
+    for (int i = 1; i < 6; i++) {
+      tfifilenumber[i] = tfifilenumber[0];
+    }
+  }
+
+  last_mode = current_tfi_mode;
+  was_preview_mode = preview_mode;
+}
+
+const char* getTfiBrowseModeString(void) {
+  if (preview_mode) {
+    return "PRVW";
+  }
+  // Only ALL mode now
+  return "ALL";
+}
+
+uint16_t getCurrentTfiCount(void) {
+  // Only ALL mode now - return total file count
+  return n;
+}
+
+uint16_t getCurrentTfiIndex(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t raw_index = tfifilenumber[safe_channel];
+
+  // Only ALL mode now - no adjustment needed
+  return raw_index;
+}
+
+void navigateTfiRight(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t current_count = getCurrentTfiCount();
+  if (current_count == 0) return;
+
+  // Only ALL mode now - cycle through all files
+  tfifilenumber[safe_channel]++;
+  if (tfifilenumber[safe_channel] >= n) {
+    tfifilenumber[safe_channel] = 0;
+  }
+
+  // Preview the TFI if in preview mode
+  previewCurrentTfi(channel);
+}
+
+void navigateTfiLeft(uint8_t channel) {
+  uint8_t safe_channel = SAFE_CHANNEL_INDEX(channel);
+  uint16_t current_count = getCurrentTfiCount();
+  if (current_count == 0) return;
+
+  // Only ALL mode now - cycle through all files
+  if (tfifilenumber[safe_channel] == 0) {
+    tfifilenumber[safe_channel] = n - 1;
+  } else {
+    tfifilenumber[safe_channel]--;
+  }
+
+  // Preview the TFI if in preview mode
+  previewCurrentTfi(channel);
+}
+
+void previewCurrentTfi(uint8_t channel) {
+  if (!preview_mode) return; // Only work in preview mode
+
+  // Check if we're in actual acceleration (not just single button press)
+  uint32_t hold_duration = millis() - button_hold_start_time;
+  bool is_accelerating = (button_is_held && hold_duration > hold_threshold_1);
+
+  if (is_accelerating) return; // Don't preview during fast browsing
+
+  // Display loading status
+  mutex_enter_blocking(&display_mutex);
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("Loading TFI...");
+  display.display();
+  mutex_exit(&display_mutex);
+
+  // Load the currently browsed TFI immediately
+  if (poly_mode == 1 && poly_multi_timbral == 0) {
+    // Standard poly mode: load TFI on all channels
+    for (int i = 1; i <= 6; i++) {
+      tfiLoadImmediateOnChannel(i);
+    }
+  } else {
+    // Mono mode or poly-multi mode: load TFI on current channel only
+    tfiLoadImmediateOnChannel(channel);
+  }
 }
