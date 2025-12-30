@@ -157,8 +157,10 @@ void showVizSubModeMessage() {
     display.print("Asteroids");
   } else if (viz_sub_mode == 2) {
     display.print("Starfighter");
-  } else {
+  } else if (viz_sub_mode == 3) {
     display.print("Neural Net");
+  } else {
+    display.print("Envelope");
   }
 
   display.display();

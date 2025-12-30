@@ -238,6 +238,7 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
                     
                     midi_send_note_off(i + 1, polynote[i], velocity);
                     midi_send_note_on(i + 1, note, velocity);
+                    triggerEnvelope(i, note, velocity);  // Trigger envelope viz
                     noteheld[i] = true;
                     repeatnote = true;
                     break;
@@ -280,9 +281,11 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
                 
                 if (polynote[randchannel] != 0) {
                     midi_send_note_off(randchannel + 1, polynote[randchannel], velocity);
+                    releaseEnvelope(randchannel);  // Release stolen voice envelope
                 }
                 midi_send_note_on(randchannel + 1, note, velocity);
-                
+                triggerEnvelope(randchannel, note, velocity);  // Trigger envelope viz
+
                 polynote[randchannel] = note;
                 polyon[randchannel] = true;
                 noteheld[randchannel] = true;
@@ -295,12 +298,14 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
         // Turn off previous note if any (true mono behavior)
         if (polyon[channel-1] && polynote[channel-1] != note) {
             midi_send_note_off(channel, polynote[channel-1], 0);
+            releaseEnvelope(channel-1);  // Release previous envelope
         }
-        
+
         polyon[channel-1] = true;
         polynote[channel-1] = note;  // Track the current note
         noteheld[channel-1] = true;
         midi_send_note_on(channel, note, velocity);
+        triggerEnvelope(channel-1, note, velocity);  // Trigger envelope viz
     } else {
         // Pass other channels straight through to GENMDM
         MIDI.sendNoteOn(note, velocity, channel);
@@ -331,13 +336,14 @@ void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity) {
                         break;
                     } else {
                         midi_send_note_off(i + 1, note, velocity);
+                        releaseEnvelope(i);  // Release envelope viz
                         polyon[i] = false;
                         polynote[i] = 0;
                         noteheld[i] = false;
                         break;
                     }
                 }
-            }            
+            }
         }
     } else {
     // Mono mode
@@ -352,6 +358,7 @@ void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity) {
             polynote[channel-1] = 0;  // Clear the tracked note
             noteheld[channel-1] = false;
             midi_send_note_off(channel, note, velocity);
+            releaseEnvelope(channel-1);  // Release envelope viz
         }
         // If the note-off doesn't match the current note, ignore it
     } else {
@@ -370,6 +377,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
                     handle_midi_input();
                     if (!noteheld[i] && sustainon[i]) { // if key not held but sustained
                         midi_send_note_off(i + 1, polynote[i], 0); // turn that voice off
+                        releaseEnvelope(i);  // Release envelope viz
                         sustainon[i] = false; // turn off sustain on that channel
                         polyon[i] = false; // turn voice off
                         polynote[i] = 0; // clear the pitch on that channel
@@ -380,6 +388,7 @@ void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
                     sustainon[i] = false;
                     if (!noteheld[i] && polyon[i]) {
                         midi_send_note_off(i + 1, polynote[i], 0);
+                        releaseEnvelope(i);  // Release envelope viz
                         polyon[i] = false;
                     }
                 }

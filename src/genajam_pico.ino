@@ -90,6 +90,55 @@ VisualizerData viz_data;
 mutex_t viz_mutex;
 mutex_t display_mutex;
 
+// Carrier mask lookup table for YM2612 algorithms (which operators produce audible output)
+// Bit positions: OP4=bit3, OP3=bit2, OP2=bit1, OP1=bit0
+// Alg 0-3: OP4 only (single carrier)
+// Alg 4: OP2, OP4 (two carriers)
+// Alg 5-6: OP2, OP3, OP4 (three carriers)
+// Alg 7: All 4 operators (additive)
+const uint8_t carrier_mask[8] = {
+    0b1000,  // Alg 0: OP4 only
+    0b1000,  // Alg 1: OP4 only
+    0b1000,  // Alg 2: OP4 only
+    0b1000,  // Alg 3: OP4 only
+    0b1010,  // Alg 4: OP2, OP4
+    0b1110,  // Alg 5: OP2, OP3, OP4
+    0b1110,  // Alg 6: OP2, OP3, OP4
+    0b1111   // Alg 7: All 4 operators
+};
+
+// Envelope phase constants
+#define ENV_PHASE_OFF      0
+#define ENV_PHASE_ATTACK   1
+#define ENV_PHASE_DECAY1   2
+#define ENV_PHASE_SUSTAIN  3
+#define ENV_PHASE_RELEASE  4
+
+// Envelope visualization state for each voice
+struct VoiceEnvelopeState {
+    bool active;                   // Is this voice currently playing?
+    uint8_t note;                  // MIDI note number
+    uint8_t velocity;              // Note velocity
+    unsigned long note_on_time;    // When the note started
+    unsigned long note_off_time;   // When the note was released (0 if still held)
+    uint8_t phase;                 // Current envelope phase
+    uint8_t level;                 // Current envelope level (0-127)
+    uint8_t attack_pulse;          // Attack pulse brightness (decays quickly)
+    // Cached ADSR values from fmsettings (averaged from carrier operators)
+    uint8_t attack_rate;
+    uint8_t decay1_rate;
+    uint8_t sustain_level;
+    uint8_t release_rate;
+};
+
+// Envelope visualization data
+VoiceEnvelopeState voice_env[6];
+#define ENV_TRAIL_LENGTH 4
+uint8_t env_trail_history[6][ENV_TRAIL_LENGTH];  // Previous level positions for trail effect
+uint8_t env_trail_index = 0;                      // Current trail history index
+unsigned long last_env_update = 0;                // For timing envelope simulation
+const unsigned long ENV_UPDATE_INTERVAL = 16;     // ~60fps envelope updates
+
 // Timing constants
 const uint16_t debouncedelay = 200;
 const uint16_t messagedelay = 700;
@@ -181,7 +230,7 @@ bool system_ready = false;  // MIDI blocking flag during boot/setup
 volatile bool cc_display_dirty = false;           // Flag: display needs CC refresh
 volatile unsigned long last_cc_display_time = 0;  // Last CC display refresh timestamp
 const unsigned long CC_DISPLAY_MIN_INTERVAL = 50; // Minimum ms between CC display refreshes (20Hz max)
-uint8_t viz_sub_mode = 0;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network
+uint8_t viz_sub_mode = 0;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
 void settingsDisplay(void);
 void settingsAdjustUp(void);
 void settingsAdjustDown(void);
@@ -195,6 +244,9 @@ void handleMidiNoteForStarfighter(uint8_t note, uint8_t velocity);
 void handleMidiNoteForNeuralNet(uint8_t note, uint8_t velocity);
 void showVizSubModeMessage(void);
 void envelopeVizDisplay(void);
+void liveEnvelopeVizDisplay(void);
+void triggerEnvelope(uint8_t voice, uint8_t note, uint8_t velocity);
+void releaseEnvelope(uint8_t voice);
 
 // MIDI monitoring
 unsigned long midi_process_count = 0;
@@ -646,12 +698,12 @@ void loop() {
       case 0: // MONO VIZ
         switch (lcd_key) {
           case btnUP:
-            viz_sub_mode = (viz_sub_mode + 1) % 4;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network
+            viz_sub_mode = (viz_sub_mode + 1) % 5;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
             showVizSubModeMessage();
             break;
 
           case btnDOWN:
-            viz_sub_mode = (viz_sub_mode == 0) ? 3 : (viz_sub_mode - 1);  // Cycle backward through modes
+            viz_sub_mode = (viz_sub_mode == 0) ? 4 : (viz_sub_mode - 1);  // Cycle backward through modes
             showVizSubModeMessage();
             break;
 
@@ -827,12 +879,12 @@ void loop() {
       case 0: // POLY VIZ
         switch (lcd_key) {
           case btnUP:
-            viz_sub_mode = (viz_sub_mode + 1) % 4;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network
+            viz_sub_mode = (viz_sub_mode + 1) % 5;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
             showVizSubModeMessage();
             break;
 
           case btnDOWN:
-            viz_sub_mode = (viz_sub_mode == 0) ? 3 : (viz_sub_mode - 1);  // Cycle backward through modes
+            viz_sub_mode = (viz_sub_mode == 0) ? 4 : (viz_sub_mode - 1);  // Cycle backward through modes
             showVizSubModeMessage();
             break;
 
@@ -1421,8 +1473,8 @@ void core1_entry() {
     bool should_render = false;
     bool in_viz_mode = (local_data.current_mode == 5 || local_data.current_mode == 6);
 
-    if (in_viz_mode && (viz_sub_mode == 1 || viz_sub_mode == 2 || viz_sub_mode == 3)) {
-        // Asteroids, Starfighter, Neural Net sub-modes always render for continuous animation
+    if (in_viz_mode && (viz_sub_mode == 1 || viz_sub_mode == 2 || viz_sub_mode == 3 || viz_sub_mode == 4)) {
+        // Asteroids, Starfighter, Neural Net, Envelope sub-modes always render for continuous animation
         should_render = true;
     } else if (in_viz_mode) {
         // Bar graph mode only renders when there are updates
