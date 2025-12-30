@@ -344,6 +344,9 @@ void settingsDisplay(void) {
     char line2[32] = "";
     const char* curve_names[] = {"Linear", "Soft", "Medium", "Hard", "ImpBox"};
 
+    // Process MIDI to keep system responsive
+    handle_midi_input();
+
     oled_clear();
 
     sprintf(line1, "SETTINGS %d/6", settings_screen);
@@ -414,6 +417,9 @@ void settingsDisplay(void) {
 
     oled_print(0, 0, line1);
     oled_print(0, 16, line2);
+
+    // Process MIDI between display operations
+    handle_midi_input();
 
     // Show controls on line 3
     if (settings_screen < 6) {

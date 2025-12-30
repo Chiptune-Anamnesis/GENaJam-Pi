@@ -1419,16 +1419,21 @@ void core1_entry() {
 
     // Check if display update is needed
     bool should_render = false;
-    if ((local_data.current_mode == 5 || local_data.current_mode == 6) && (viz_sub_mode == 1 || viz_sub_mode == 2 || viz_sub_mode == 3)) {
-        // Asteroids and Starfighter sub-modes always render for continuous animation
+    bool in_viz_mode = (local_data.current_mode == 5 || local_data.current_mode == 6);
+
+    if (in_viz_mode && (viz_sub_mode == 1 || viz_sub_mode == 2 || viz_sub_mode == 3)) {
+        // Asteroids, Starfighter, Neural Net sub-modes always render for continuous animation
         should_render = true;
-    } else if (local_data.current_mode == 5 || local_data.current_mode == 6) {
-        // Other visualizer modes only render when there are updates
+    } else if (in_viz_mode) {
+        // Bar graph mode only renders when there are updates
         should_render = (needs_display_update || local_data.needs_update);
     }
 
-    // Reset the update flag
-    viz_data.needs_update = false;
+    // Only clear the update flag if we're in visualizer mode and will render
+    // Otherwise keep it set so we render when we return to viz mode
+    if (in_viz_mode && should_render) {
+        viz_data.needs_update = false;
+    }
 
     mutex_exit(&viz_mutex);
 
@@ -1440,7 +1445,7 @@ void core1_entry() {
         mutex_exit(&display_mutex);
         last_update = current_time;
       }
-      // Skip frame if mutex unavailable
+      // If mutex unavailable, keep needs_update true for next frame
     }
 
     // Prevent system overload

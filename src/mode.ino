@@ -56,15 +56,16 @@ void modechangemessage(void) {
 
 void cycleEditMode() {
   if (poly_mode == 0) { // MONO
-    // NEW ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> BANK_MGR(3) -> SETTINGS(4) -> VIZ(0)
+    // MONO ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> BANK_MGR(3) -> SETTINGS(4) -> VIZ(0)
     edit_mode++;
     if (edit_mode > 4) edit_mode = 0;
-} else { // POLY
-    // NEW ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> VIZ(0)
-    // Bank MGR (3) and Settings (4) are disabled in POLY
+  } else { // POLY
+    // POLY ORDER: VIZ(0) -> PRESET(1) -> EDIT(2) -> SETTINGS(4) -> VIZ(0)
+    // Bank MGR (3) is disabled in POLY, but Settings is accessible
     edit_mode++;
-    if (edit_mode > 2) edit_mode = 0;  // Only cycle through 0,1,2
-}
+    if (edit_mode == 3) edit_mode = 4;  // Skip bank mgr, go to settings
+    if (edit_mode > 4) edit_mode = 0;
+  }
   
   // Update the global mode variable
   updateGlobalMode();
@@ -210,13 +211,13 @@ void updateGlobalMode() {
       case 3: mode = 7; break;  // MONO BANK_MGR
       case 4: mode = 9; break;  // SETTINGS
     }
-} else { // POLY
-  switch(edit_mode) {
-    case 0: mode = 6; break;  // POLY VIZ
-    case 1: mode = 3; break;  // POLY PRESET
-    case 2: mode = 4; break;  // POLY EDIT
-    case 3: mode = 6; break;  // Fallback to VIZ (bank mgr disabled)
-    case 4: mode = 6; break;  // Fallback to VIZ (settings disabled)
+  } else { // POLY
+    switch(edit_mode) {
+      case 0: mode = 6; break;  // POLY VIZ
+      case 1: mode = 3; break;  // POLY PRESET
+      case 2: mode = 4; break;  // POLY EDIT
+      case 3: mode = 6; break;  // Fallback to VIZ (bank mgr disabled)
+      case 4: mode = 9; break;  // SETTINGS (now accessible in POLY)
+    }
   }
-}
 }
