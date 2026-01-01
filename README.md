@@ -1,4 +1,4 @@
-# GENajam-Pi v1.50
+# GENajam-Pi v1.51
 
 Get one here! https://hobbychop.com
 
@@ -44,12 +44,14 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 **PRESET Button:** VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS → VIZ...
 
 #### Visualizer Mode
-- **Visualization Types** (UP/DOWN to cycle):
+- **7 Visualization Types** (UP/DOWN to cycle):
   - Bar Graph - Classic frequency bars
   - Asteroids - Space debris field animation
   - Starfighter - Space flight simulation
   - Neural Net - Hexagonal network visualization
-  - Envelope ADSR Overlay
+  - Envelope - Real-time ADSR envelope display
+  - Matrix Rain - Falling character rain effect
+  - Oscilloscope - Animated waveform display
 - Real-time MIDI activity display for channels 1-11
 
 #### Presets Mode
@@ -85,7 +87,7 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 *(Bank Manager disabled in POLY mode, Settings accessible)*
 
 #### Visualizer Mode
-- Same 4 visualization types as MONO mode
+- Same 7 visualization types as MONO mode
 - Shows polyphonic activity across all 6 channels
 
 #### Presets Mode
@@ -273,7 +275,7 @@ These CCs are forwarded to GENMDM but don't update internal display state (globa
 ## Installation
 
 ### Quick Setup (Recommended)
-1. Download the latest `genajam-pico-v1.50.uf2` file from releases
+1. Download the latest `genajam-pico-v1.51.uf2` file from releases
 2. Hold the BOOTSEL button on your Pico and connect to USB
 3. Drag and drop the UF2 file onto the RPI-RP2 drive
 4. The Pico will automatically reboot and start GenaJam
@@ -336,6 +338,12 @@ Navigate with LEFT/RIGHT, adjust with UP/DOWN, save with BTN2.
 
 ## Version History
 
+### v1.51 Changes
+- Added Matrix Rain visualization - MIDI-reactive falling character rain effect with full screen coverage
+- Added Oscilloscope visualization - animated waveform display showing different wave types per note range (sine, triangle, saw, square, noise)
+- Visualizer modes expanded from 5 to 7 types (Bar Graph, Asteroids, Starfighter, Neural Net, Envelope, Matrix Rain, Oscilloscope)
+- Added CC 123 (All Notes Off) and CC 120 (All Sound Off) handling - stops all notes including PSG/DAC channels when DAW sends stop command
+
 ### v1.50 Changes
 - Enabled Bank Manager in Poly Multi-Timbral mode - load/save preset banks while using poly-multi
 - POLY-MT mode cycle now includes Bank Manager: VIZ → PRESETS → FM EDIT → BANK MGR → SETTINGS
@@ -380,4 +388,3 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
-

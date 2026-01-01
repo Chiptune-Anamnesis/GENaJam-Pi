@@ -169,8 +169,12 @@ void showVizSubModeMessage() {
     display.print("Starfighter");
   } else if (viz_sub_mode == 3) {
     display.print("Neural Net");
-  } else {
+  } else if (viz_sub_mode == 4) {
     display.print("Envelope");
+  } else if (viz_sub_mode == 5) {
+    display.print("Matrix Rain");
+  } else {
+    display.print("Oscilloscope");
   }
 
   display.display();

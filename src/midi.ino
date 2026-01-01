@@ -218,7 +218,17 @@ void handle_note_on(uint8_t channel, uint8_t note, uint8_t velocity) {
     if ((mode == 5 || mode == 6) && viz_sub_mode == 3 && channel >= 1 && channel <= 6) {
         handleMidiNoteForNeuralNet(note, velocity);
     }
-    
+
+    // Handle matrix rain demo MIDI integration
+    if ((mode == 5 || mode == 6) && viz_sub_mode == 5 && channel >= 1 && channel <= 6) {
+        handleMidiNoteForMatrixRain(note, velocity);
+    }
+
+    // Handle oscilloscope demo MIDI integration
+    if ((mode == 5 || mode == 6) && viz_sub_mode == 6 && channel >= 1 && channel <= 6) {
+        handleMidiNoteForOscilloscope(note, velocity, channel - 1);  // Convert to 0-based
+    }
+
     // Apply configurable velocity curve for more musical response
     velocity = applyVelocityCurve(velocity);
     
@@ -368,6 +378,27 @@ void handle_note_off(uint8_t channel, uint8_t note, uint8_t velocity) {
 }
 
 void handle_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
+    // CC 123 = All Notes Off, CC 120 = All Sound Off - stop notes without resetting instruments
+    if (cc == 123 || cc == 120) {
+        // Reset internal voice tracking
+        for (int i = 0; i < 6; i++) {
+            polyon[i] = false;
+            polynote[i] = 0;
+            noteheld[i] = false;
+            sustainon[i] = false;
+        }
+        sustain = false;
+        lowestnote = 0;
+
+        // Send note-offs to all channels (FM 1-6, PSG 7-10, DAC 11)
+        for (uint8_t ch = 1; ch <= 11; ch++) {
+            for (uint8_t note = 0; note < 128; note++) {
+                midi_send_note_off(ch, note, 0);
+            }
+        }
+        return;  // Don't forward this CC
+    }
+
     if (cc == 64) { // Sustain pedal
         if (value == 0) { // sustain pedal released
             sustain = false;

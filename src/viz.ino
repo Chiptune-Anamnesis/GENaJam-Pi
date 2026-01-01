@@ -118,6 +118,10 @@ void core1_visualizerDisplay(const VisualizerData& data) {
         neuralNetDemo();  // Call neural network demo from neuralnet.ino
     } else if ((viz_data.current_mode == 5 || viz_data.current_mode == 6) && viz_sub_mode == 4) {
         liveEnvelopeVizDisplay();  // Call live envelope visualization
+    } else if ((viz_data.current_mode == 5 || viz_data.current_mode == 6) && viz_sub_mode == 5) {
+        matrixRainDemo();  // Call matrix rain demo from matrixrain.ino
+    } else if ((viz_data.current_mode == 5 || viz_data.current_mode == 6) && viz_sub_mode == 6) {
+        oscilloscopeDemo();  // Call oscilloscope demo from oscilloscope.ino
     } else if (viz_data.current_mode == 6) {  // POLY VIZ mode (bar graph)
         polyVisualizerDisplay();
     } else {  // MONO VIZ mode (bar graph) (mode 5)

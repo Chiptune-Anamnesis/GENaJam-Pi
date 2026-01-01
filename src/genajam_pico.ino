@@ -1,4 +1,4 @@
-const char* GENAJAM_VERSION = "v1.50";
+const char* GENAJAM_VERSION = "v1.51";
 // GENajam Arduino Pico Port - Crunchypotato 2025-SEPTEMBER
 // Originally by/forked from JAMATAR 2021-AUGUST
 // Version information
@@ -230,7 +230,7 @@ bool system_ready = false;  // MIDI blocking flag during boot/setup
 volatile bool cc_display_dirty = false;           // Flag: display needs CC refresh
 volatile unsigned long last_cc_display_time = 0;  // Last CC display refresh timestamp
 const unsigned long CC_DISPLAY_MIN_INTERVAL = 50; // Minimum ms between CC display refreshes (20Hz max)
-uint8_t viz_sub_mode = 0;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
+uint8_t viz_sub_mode = 0;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope, 5=matrix rain, 6=oscilloscope
 void settingsDisplay(void);
 void settingsAdjustUp(void);
 void settingsAdjustDown(void);
@@ -698,12 +698,12 @@ void loop() {
       case 0: // MONO VIZ
         switch (lcd_key) {
           case btnUP:
-            viz_sub_mode = (viz_sub_mode + 1) % 5;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
+            viz_sub_mode = (viz_sub_mode + 1) % 7;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope, 5=matrix rain, 6=oscilloscope
             showVizSubModeMessage();
             break;
 
           case btnDOWN:
-            viz_sub_mode = (viz_sub_mode == 0) ? 4 : (viz_sub_mode - 1);  // Cycle backward through modes
+            viz_sub_mode = (viz_sub_mode == 0) ? 6 : (viz_sub_mode - 1);  // Cycle backward through modes
             showVizSubModeMessage();
             break;
 
@@ -879,12 +879,12 @@ void loop() {
       case 0: // POLY VIZ
         switch (lcd_key) {
           case btnUP:
-            viz_sub_mode = (viz_sub_mode + 1) % 5;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope
+            viz_sub_mode = (viz_sub_mode + 1) % 7;  // 0=bar graph, 1=asteroids, 2=starfighter, 3=neural network, 4=envelope, 5=matrix rain, 6=oscilloscope
             showVizSubModeMessage();
             break;
 
           case btnDOWN:
-            viz_sub_mode = (viz_sub_mode == 0) ? 4 : (viz_sub_mode - 1);  // Cycle backward through modes
+            viz_sub_mode = (viz_sub_mode == 0) ? 6 : (viz_sub_mode - 1);  // Cycle backward through modes
             showVizSubModeMessage();
             break;
 
@@ -1514,8 +1514,8 @@ void core1_entry() {
     bool should_render = false;
     bool in_viz_mode = (local_data.current_mode == 5 || local_data.current_mode == 6);
 
-    if (in_viz_mode && (viz_sub_mode == 1 || viz_sub_mode == 2 || viz_sub_mode == 3 || viz_sub_mode == 4)) {
-        // Asteroids, Starfighter, Neural Net, Envelope sub-modes always render for continuous animation
+    if (in_viz_mode && (viz_sub_mode >= 1 && viz_sub_mode <= 6)) {
+        // Asteroids, Starfighter, Neural Net, Envelope, Matrix Rain, Oscilloscope sub-modes always render for continuous animation
         should_render = true;
     } else if (in_viz_mode) {
         // Bar graph mode only renders when there are updates
