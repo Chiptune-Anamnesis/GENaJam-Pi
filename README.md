@@ -11,7 +11,7 @@ GENajam-Pi transforms your Raspberry Pi Pico into a powerful MIDI controller for
 <img src="images/GENaJam-Pi-2.jpeg" width="400">
 
 ## PCB Fabrication by PCBWay
-The GenaJam PCBs were fabricated by PCBWay, who generously offered a discount to support this project. PCBWay provides high-quality PCB manufacturing and assembly with options well-suited for both prototyping and small production runs.The boards arrived with clean silkscreen, accurate solder mask alignment, and solid overall build quality. PCBWay offers dependable PCB fabrication suitable for both prototyping and small production runs.
+The GenaJam PCBs were fabricated by PCBWay, who generously offered a discount to support this project. PCBWay provides high-quality PCB manufacturing and assembly with options well-suited for both prototyping and small production runs.The boards arrived with clean silkscreen, accurate solder mask alignment, and solid overall build quality. PCBWay offers dependable PCB fabrication suitable for both prototyping and small production runs. Website: https://www.pcbway.com
 
 ## Key Features
 
@@ -393,4 +393,5 @@ Open source hardware and software project. Use and modify as needed for your mus
 
 
 *Built for musicians who want hands-on control of FM synthesis with modern reliability and features.*
+
 
